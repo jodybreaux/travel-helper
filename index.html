@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travel Helper</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="Travel Helper home">
+          <span class="brand-mark">TH</span>
+          <span>Travel Helper</span>
+        </a>
+        <div class="nav-actions">
+          <a href="#planner">Plan a Trip</a>
+          <a href="#routes">Routes</a>
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+            <span id="themeLabel">Dark</span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Smart trip planning preview</p>
+          <h1>Plan safer, better-timed trips with route-aware recommendations.</h1>
+          <p class="hero-text">
+            Compare route options, spot meal windows, preview weather, and keep useful stops close
+            to your path.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#planner">Start planning</a>
+            <a class="button button-secondary" href="#routes">View sample routes</a>
+          </div>
+        </div>
+
+        <aside class="hero-card" aria-label="Trip readiness summary">
+          <div class="status-row">
+            <span class="status-pill good">Ready</span>
+            <span>Chicago to Nashville</span>
+          </div>
+          <div class="metric-grid">
+            <div>
+              <span class="metric-value">3</span>
+              <span class="metric-label">Route options</span>
+            </div>
+            <div>
+              <span class="metric-value">7h 12m</span>
+              <span class="metric-label">Fastest drive</span>
+            </div>
+            <div>
+              <span class="metric-value">72&deg;</span>
+              <span class="metric-label">Arrival weather</span>
+            </div>
+          </div>
+          <div class="mini-map" role="img" aria-label="Stylized route map from Chicago to Nashville">
+            <span class="map-dot origin"></span>
+            <span class="map-dot stop-a"></span>
+            <span class="map-dot stop-b"></span>
+            <span class="map-dot destination"></span>
+            <span class="map-route"></span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="planner-section" id="planner" aria-labelledby="plannerTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Trip inputs</p>
+          <h2 id="plannerTitle">Tell us where and when you are going.</h2>
+          <p>
+            This prototype uses mock route data, but the flow mirrors the planned production
+            experience.
+          </p>
+        </div>
+
+        <form class="planner-card" id="tripForm">
+          <div class="form-grid">
+            <label>
+              Departure from origin
+              <input id="departDate" name="departDate" type="date" required />
+            </label>
+            <label>
+              Origin city or address
+              <input id="origin" name="origin" type="text" placeholder="Chicago, IL" required />
+            </label>
+            <label>
+              Arrival at destination
+              <input id="arrivalDate" name="arrivalDate" type="date" required />
+            </label>
+            <label>
+              Final destination
+              <input id="destination" name="destination" type="text" placeholder="Nashville, TN" required />
+            </label>
+            <label>
+              Leave destination
+              <input id="returnDate" name="returnDate" type="date" required />
+            </label>
+            <label>
+              Desired return home
+              <input id="homeDate" name="homeDate" type="date" required />
+            </label>
+            <label>
+              Transportation
+              <select id="mode" name="mode">
+                <option>Car</option>
+                <option>Train</option>
+                <option>Bus</option>
+                <option>Airplane</option>
+              </select>
+            </label>
+            <label>
+              Time zone
+              <select id="timezone" name="timezone">
+                <option value="America/Chicago">Central Time</option>
+                <option value="America/New_York">Eastern Time</option>
+                <option value="America/Denver">Mountain Time</option>
+                <option value="America/Los_Angeles">Pacific Time</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="preference-row" aria-label="Trip preferences">
+            <label class="check-option">
+              <input id="gasToggle" type="checkbox" />
+              Show gas stations
+            </label>
+            <label class="check-option">
+              <input id="restaurantToggle" type="checkbox" checked />
+              Suggest restaurants
+            </label>
+            <label>
+              Date format
+              <select id="dateFormat">
+                <option value="en-US">US</option>
+                <option value="en-GB">International</option>
+                <option value="de-DE">Germany</option>
+                <option value="ja-JP">Japan</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-footer">
+            <p class="form-message" id="formMessage" role="status">
+              Fill out the form to preview route recommendations.
+            </p>
+            <button class="button button-primary" type="submit">Preview routes</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="routes-section" id="routes" aria-labelledby="routesTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Recommended options</p>
+          <h2 id="routesTitle">Three ways to make the trip.</h2>
+        </div>
+
+        <div class="route-grid" id="routeGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="map-section" aria-labelledby="mapTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Driving directions</p>
+          <h2 id="mapTitle">Live route map and turn-by-turn preview.</h2>
+          <p id="mapStatus" role="status">
+            Loading the sample driving route from Chicago to Nashville.
+          </p>
+        </div>
+
+        <div class="map-layout">
+          <div
+            class="driving-map"
+            id="drivingMap"
+            role="application"
+            aria-label="Interactive driving route map"
+          ></div>
+          <aside class="directions-card" aria-label="Driving directions">
+            <div class="route-summary" id="routeSummary">
+              Enter a trip to calculate driving directions.
+            </div>
+            <ol class="directions-list" id="directionsList"></ol>
+          </aside>
+        </div>
+      </section>
+
+      <section class="details-layout" aria-label="Trip details">
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">W</span>
+            <div>
+              <h3>Weather Along Route</h3>
+              <p>Forecast snapshots by travel segment.</p>
+            </div>
+          </div>
+          <ul class="detail-list">
+            <li><strong>Morning:</strong> 64&deg;, clear visibility near departure.</li>
+            <li><strong>Midday:</strong> 72&deg;, light crosswinds through central segment.</li>
+            <li><strong>Evening:</strong> 68&deg;, 20% rain chance near destination.</li>
+          </ul>
+        </article>
+
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">M</span>
+            <div>
+              <h3>Meal Window Detected</h3>
+              <p>Lunch falls inside the estimated travel window.</p>
+            </div>
+          </div>
+          <div class="restaurant-list" id="restaurantList"></div>
+        </article>
+
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">G</span>
+            <div>
+              <h3>Fuel Stops</h3>
+              <p>Optional gas stations within range of the route.</p>
+            </div>
+          </div>
+          <div id="gasPanel" class="empty-state">Gas station display is off.</div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Prototype interface for the Travel Helper Application SRD.</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
