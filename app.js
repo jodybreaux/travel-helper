@@ -49,8 +49,8 @@ const mealWindows = [
   { name: "Dinner", start: 17, end: 21, midpoint: 19 },
 ];
 
-const DEFAULT_ORIGIN = "1104 San Augustine Drive, Austin, TX 78733";
-const DEFAULT_DESTINATION = "The Home Depot, Lakeway, TX";
+const DEFAULT_ORIGIN = "1104 San Augustine Dr., Austin, TX. 78733";
+const DEFAULT_DESTINATION = "13601 Golden Wave Loop, Austin, TX. 78738";
 
 const root = document.documentElement;
 const themeToggle = document.querySelector("#themeToggle");
