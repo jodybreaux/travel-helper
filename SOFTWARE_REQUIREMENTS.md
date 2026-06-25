@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.5  
+**Version:** 1.6
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -106,6 +106,8 @@ Prototype status:
 - Implemented for date sequence and future minimum dates.
 - Default departure and destination arrival dates are set to today.
 - Default leave-destination and return-home dates are set to tomorrow.
+- Date fields cascade automatically: arrival cannot be before departure, leave destination must be
+  after arrival, and desired return home must be after leaving the destination.
 
 **REQ-4.1.4: Transportation Mode Validation**  
 The application shall only calculate routes applicable to the selected transportation mode.
@@ -161,8 +163,8 @@ The application shall automatically detect standard meal-time windows during tra
 Prototype status:
 - Implemented for car routes using selected departure date, departure time, selected timezone, and
   OSRM step durations.
-- The app estimates when the user will pass through route areas and detects breakfast, lunch, and
-  dinner windows.
+- The app estimates where the car will be at 7:00 AM, 12:00 PM, and 7:00 PM local trip time when
+  those times fall within the active driving window.
 
 **REQ-4.3.2: Dining Prompts**  
 When meal times are detected, the application shall offer restaurant recommendations and cuisine
@@ -173,6 +175,8 @@ Prototype status:
 - Cuisine selector remains future work.
 - Recommendations are automatically loaded when a meal window intersects the calculated driving
   route.
+- Breakfast, lunch, and dinner recommendations are tied to the estimated route location at 7:00 AM,
+  12:00 PM, and 7:00 PM respectively.
 - For short local trips with no breakfast, lunch, or dinner window during travel, the prototype
   falls back to route-adjacent nearby food suggestions.
 
@@ -283,6 +287,8 @@ The application shall guide users through:
 
 Prototype status:
 - Input collection, route display, map, directions, and detail panels are implemented.
+- Landing-page buttons switch between route info, route selection, meals, and gas pages to avoid one
+  long scrollable page.
 - Main hero title is `Route-Aware Trip Planning`.
 - Footer branding displays `Cajun Travel Services`.
 - Final itinerary view remains future work.
@@ -381,6 +387,7 @@ Production note:
 
 - [x] Application accepts required user inputs.
 - [x] Application validates basic date sequence logic.
+- [x] Application cascades date changes through dependent trip dates.
 - [x] Application geocodes origin and destination addresses.
 - [x] Application resolves nearby Austin ZIP trips such as `78733` to `78738` as local routes.
 - [x] Application calculates and displays a live car route.
@@ -389,6 +396,8 @@ Production note:
 - [x] Application recalculates route details when user-selectable trip criteria change.
 - [x] Application collapses route choices to the selected route with a link to restore all options.
 - [x] Application displays actual restaurants along the route.
+- [x] Application targets meal recommendations by route location at breakfast, lunch, and dinner
+      clock times.
 - [x] Application ties restaurant recommendations to detected meal windows and approximate
       pass-through times.
 - [x] Application displays active inclement-weather alert overlays for US routes.
@@ -436,6 +445,9 @@ Production note:
 - Added nearby food fallback for short local trips that do not cross a standard meal window.
 - Updated hero/footer copy, route labels, date defaults, route-selection display, and automatic
   recalculation on user criteria changes.
+- Added guided route info, route selection, meals, and gas pages.
+- Added cascading date updates and fixed-time breakfast, lunch, and dinner route-location meal
+  targeting.
 - Installed Node.js and npm through Homebrew.
 - Verified `node --check app.js`.
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
@@ -464,3 +476,4 @@ Production note:
 | 1.3 | June 25, 2026 | Added departure time and time-aware meal-window restaurant recommendations |
 | 1.4 | June 25, 2026 | Added default address, Austin-area ZIP geocoding, and short-trip restaurant fallback status |
 | 1.5 | June 25, 2026 | Added route-selection collapse, automatic recalculation, date defaults, and branding updates |
+| 1.6 | June 25, 2026 | Added guided pages, cascading dates, and fixed-time meal targeting status |

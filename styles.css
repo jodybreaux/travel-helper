@@ -114,8 +114,20 @@ a {
   font-size: 0.95rem;
 }
 
+.nav-link {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
 .nav-actions a:hover,
-.nav-actions a:focus-visible {
+.nav-actions a:focus-visible,
+.nav-link:hover,
+.nav-link:focus-visible,
+.nav-link.active {
   color: var(--text);
 }
 
@@ -229,6 +241,20 @@ h3 {
 .hero-actions {
   flex-wrap: wrap;
   gap: 0.85rem;
+}
+
+.page-actions .button.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.26);
+}
+
+.app-page {
+  display: none;
+}
+
+.app-page.active {
+  display: block;
 }
 
 .hero-card,
@@ -611,6 +637,15 @@ a:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
+}
+
+.details-layout.app-page {
+  display: none;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.details-layout.app-page.active {
+  display: grid;
 }
 
 .insight-card {

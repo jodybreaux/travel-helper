@@ -44,9 +44,9 @@ const gasStations = [
 ];
 
 const mealWindows = [
-  { name: "Breakfast", start: 6, end: 10, midpoint: 8 },
-  { name: "Lunch", start: 11, end: 14, midpoint: 12.5 },
-  { name: "Dinner", start: 17, end: 21, midpoint: 19 },
+  { name: "Breakfast", targetHour: 7 },
+  { name: "Lunch", targetHour: 12 },
+  { name: "Dinner", targetHour: 19 },
 ];
 
 const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
@@ -58,6 +58,8 @@ const themeToggle = document.querySelector("#themeToggle");
 const themeLabel = document.querySelector("#themeLabel");
 const tripForm = document.querySelector("#tripForm");
 const formMessage = document.querySelector("#formMessage");
+const pageButtons = document.querySelectorAll("[data-page-target]");
+const appPages = document.querySelectorAll("[data-page]");
 const routeGrid = document.querySelector("#routeGrid");
 const gasToggle = document.querySelector("#gasToggle");
 const restaurantToggle = document.querySelector("#restaurantToggle");
@@ -89,11 +91,22 @@ function getToday() {
   return new Date().toISOString().split("T")[0];
 }
 
+function addDays(dateValue, days) {
+  const date = new Date(`${dateValue}T00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split("T")[0];
+}
+
+function ensureDateAtLeast(input, minValue) {
+  input.min = minValue;
+  if (!input.value || input.value < minValue) {
+    input.value = minValue;
+  }
+}
+
 function setDefaultDates() {
   const today = getToday();
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowValue = tomorrow.toISOString().split("T")[0];
+  const tomorrowValue = addDays(today, 1);
   const defaults = {
     departDate: today,
     arrivalDate: today,
@@ -106,11 +119,59 @@ function setDefaultDates() {
     input.value = value;
     input.min = today;
   });
+
+  syncDateSequence();
 }
 
 function setDefaultTripValues() {
   document.querySelector("#origin").value = DEFAULT_ORIGIN;
   document.querySelector("#destination").value = DEFAULT_DESTINATION;
+}
+
+function showPage(pageName, { scroll = true } = {}) {
+  appPages.forEach((page) => {
+    page.classList.toggle("active", page.dataset.page === pageName);
+  });
+
+  pageButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.pageTarget === pageName);
+  });
+
+  if (pageName === "routes" && map) {
+    setTimeout(() => map.invalidateSize(), 0);
+  }
+
+  if (scroll) {
+    document.querySelector(`[data-page="${pageName}"]`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}
+
+function syncDateSequence(changedId = "") {
+  const departDate = document.querySelector("#departDate");
+  const arrivalDate = document.querySelector("#arrivalDate");
+  const returnDate = document.querySelector("#returnDate");
+  const homeDate = document.querySelector("#homeDate");
+  const today = getToday();
+
+  ensureDateAtLeast(departDate, today);
+  ensureDateAtLeast(arrivalDate, departDate.value);
+  ensureDateAtLeast(returnDate, addDays(arrivalDate.value, 1));
+  ensureDateAtLeast(homeDate, addDays(returnDate.value, 1));
+
+  if (changedId === "departDate") {
+    ensureDateAtLeast(arrivalDate, departDate.value);
+  }
+
+  if (changedId === "arrivalDate" || changedId === "departDate") {
+    ensureDateAtLeast(returnDate, addDays(arrivalDate.value, 1));
+  }
+
+  if (changedId === "returnDate" || changedId === "arrivalDate" || changedId === "departDate") {
+    ensureDateAtLeast(homeDate, addDays(returnDate.value, 1));
+  }
 }
 
 function debounce(callback, delay = 300) {
@@ -370,7 +431,7 @@ function getHourOfDay(date) {
 
 function getMatchingMealWindow(date) {
   const hour = getHourOfDay(date);
-  return mealWindows.find((meal) => hour >= meal.start && hour <= meal.end);
+  return mealWindows.find((meal) => Math.abs(hour - meal.targetHour) <= 0.5);
 }
 
 function getDistanceMiles(a, b) {
@@ -387,41 +448,67 @@ function getDistanceMiles(a, b) {
   return 2 * radiusMiles * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
-function getMealWindowPoints(route, departureAt) {
-  const candidatesByMeal = new Map();
+function getRouteCoordinateAtElapsed(route, elapsedTargetSeconds) {
   let elapsedSeconds = 0;
+  const steps = route.legs.flatMap((leg) => leg.steps);
 
-  route.legs.flatMap((leg) => leg.steps).forEach((step) => {
-    const [lon, lat] = step.maneuver?.location || [];
-    if (lon == null || lat == null) return;
+  for (const step of steps) {
+    const duration = step.duration || 0;
+    const nextElapsedSeconds = elapsedSeconds + duration;
+    const coordinates = step.geometry?.coordinates || [];
 
-    const passTime = new Date(departureAt.getTime() + elapsedSeconds * 1000);
-    const meal = getMatchingMealWindow(passTime);
+    if (elapsedTargetSeconds <= nextElapsedSeconds) {
+      if (coordinates.length) {
+        const fraction = duration ? (elapsedTargetSeconds - elapsedSeconds) / duration : 0;
+        const index = Math.max(0, Math.min(coordinates.length - 1, Math.round(fraction * (coordinates.length - 1))));
+        const [lon, lat] = coordinates[index];
+        return { lon, lat, road: step.name || "route segment" };
+      }
 
-    if (meal) {
-      const candidate = {
-        meal: meal.name,
-        mealMidpoint: meal.midpoint,
-        passTime,
-        lon,
-        lat,
-        road: step.name || "route segment",
-      };
-      const existing = candidatesByMeal.get(meal.name) || [];
-      existing.push(candidate);
-      candidatesByMeal.set(meal.name, existing);
+      const [lon, lat] = step.maneuver?.location || [];
+      if (lon != null && lat != null) {
+        return { lon, lat, road: step.name || "route segment" };
+      }
     }
 
-    elapsedSeconds += step.duration || 0;
-  });
+    elapsedSeconds = nextElapsedSeconds;
+  }
 
-  return [...candidatesByMeal.values()].map((candidates) =>
-    candidates.reduce((best, candidate) => {
-      const candidateScore = Math.abs(getHourOfDay(candidate.passTime) - candidate.mealMidpoint);
-      const bestScore = Math.abs(getHourOfDay(best.passTime) - best.mealMidpoint);
-      return candidateScore < bestScore ? candidate : best;
-    }),
-  );
+  const [lon, lat] = route.geometry.coordinates.at(-1) || [];
+  return lon != null && lat != null ? { lon, lat, road: "route area" } : null;
+}
+
+function getNextMealTime(departureAt, targetHour) {
+  const target = new Date(departureAt);
+  target.setHours(targetHour, 0, 0, 0);
+
+  while (target < departureAt) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  return target;
+}
+
+function getMealWindowPoints(route, departureAt) {
+  const arrivalAt = new Date(departureAt.getTime() + (route.duration || 0) * 1000);
+
+  return mealWindows
+    .map((meal) => {
+      const passTime = getNextMealTime(departureAt, meal.targetHour);
+      if (passTime > arrivalAt) return null;
+
+      const elapsedSeconds = (passTime.getTime() - departureAt.getTime()) / 1000;
+      const location = getRouteCoordinateAtElapsed(route, elapsedSeconds);
+      if (!location) return null;
+
+      return {
+        meal: meal.name,
+        mealMidpoint: meal.targetHour,
+        passTime,
+        ...location,
+      };
+    })
+    .filter(Boolean);
 }
 
 function getNearbyFoodPoints(route, departureAt) {
@@ -853,11 +940,11 @@ function validateDates(formData) {
     return "Departure from origin must be before arrival at the destination.";
   }
 
-  if (arrival > leave) {
-    return "Departure from the destination must be after arrival at the destination.";
+  if (arrival >= leave) {
+    return "Leaving the destination must be after arrival at the destination.";
   }
 
-  if (leave > home) {
+  if (leave >= home) {
     return "Desired return home must be after leaving the destination.";
   }
 
@@ -896,7 +983,7 @@ async function previewTrip({ scrollToRoutes = false } = {}) {
   await loadDrivingDirections(origin, destination, departureAt, requestId);
 
   if (scrollToRoutes) {
-    document.querySelector("#routes").scrollIntoView({ behavior: "smooth", block: "start" });
+    showPage("routes");
   }
 }
 
@@ -909,12 +996,23 @@ function setupAutoPreview() {
     if (control === gasToggle || control === restaurantToggle) return;
 
     const eventName = control.type === "text" ? "input" : "change";
-    control.addEventListener(eventName, scheduleTripPreview);
+    control.addEventListener(eventName, () => {
+      if (control.type === "date") {
+        syncDateSequence(control.id);
+      }
+      scheduleTripPreview();
+    });
   });
 }
 
 themeToggle.addEventListener("click", () => {
   setTheme(root.dataset.theme === "dark" ? "light" : "dark");
+});
+
+pageButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    showPage(button.dataset.pageTarget);
+  });
 });
 
 tripForm.addEventListener("submit", async (event) => {
@@ -939,6 +1037,7 @@ setupAddressAutocomplete("#origin", "#originSuggestions");
 setupAddressAutocomplete("#destination", "#destinationSuggestions");
 setupAutoPreview();
 initMap();
+showPage("route-info", { scroll: false });
 renderRoutes();
 renderRestaurants();
 renderGasStations();
