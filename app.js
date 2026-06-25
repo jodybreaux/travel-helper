@@ -49,6 +49,9 @@ const mealWindows = [
   { name: "Dinner", start: 17, end: 21, midpoint: 19 },
 ];
 
+const DEFAULT_ORIGIN = "1104 San Augustine Drive, Austin, TX 78733";
+const DEFAULT_DESTINATION = "The Home Depot, Lakeway, TX";
+
 const root = document.documentElement;
 const themeToggle = document.querySelector("#themeToggle");
 const themeLabel = document.querySelector("#themeLabel");
@@ -94,8 +97,17 @@ function setDefaultDates() {
 }
 
 function setDefaultTripValues() {
-  document.querySelector("#origin").value = "Chicago, IL";
-  document.querySelector("#destination").value = "Nashville, TN";
+  document.querySelector("#origin").value = DEFAULT_ORIGIN;
+  document.querySelector("#destination").value = DEFAULT_DESTINATION;
+}
+
+function debounce(callback, delay = 300) {
+  let timeoutId;
+
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => callback(...args), delay);
+  };
 }
 
 function initMap() {
@@ -190,6 +202,53 @@ async function geocodeLocation(query) {
     lat: Number(results[0].lat),
     lon: Number(results[0].lon),
   };
+}
+
+async function fetchAddressSuggestions(query) {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("countrycodes", "us");
+  url.searchParams.set("q", query);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Address suggestions are unavailable right now.");
+  }
+
+  return response.json();
+}
+
+function renderAddressSuggestions(datalist, suggestions) {
+  datalist.innerHTML = suggestions
+    .map((suggestion) => `<option value="${escapeHtml(suggestion.display_name)}"></option>`)
+    .join("");
+}
+
+function setupAddressAutocomplete(inputSelector, datalistSelector) {
+  const input = document.querySelector(inputSelector);
+  const datalist = document.querySelector(datalistSelector);
+  let requestId = 0;
+
+  input.addEventListener(
+    "input",
+    debounce(async () => {
+      const query = input.value.trim();
+      const currentRequestId = ++requestId;
+
+      datalist.innerHTML = "";
+      if (query.length < 3) return;
+
+      try {
+        const suggestions = await fetchAddressSuggestions(query);
+        if (currentRequestId !== requestId) return;
+        renderAddressSuggestions(datalist, suggestions);
+      } catch {
+        datalist.innerHTML = "";
+      }
+    }),
+  );
 }
 
 async function fetchDrivingRoute(origin, destination) {
@@ -755,8 +814,10 @@ restaurantToggle.addEventListener("change", renderRestaurants);
 setTheme(localStorage.getItem("travel-helper-theme") || "light");
 setDefaultDates();
 setDefaultTripValues();
+setupAddressAutocomplete("#origin", "#originSuggestions");
+setupAddressAutocomplete("#destination", "#destinationSuggestions");
 initMap();
 renderRoutes();
 renderRestaurants();
 renderGasStations();
-loadDrivingDirections("Chicago, IL", "Nashville, TN");
+loadDrivingDirections(DEFAULT_ORIGIN, DEFAULT_DESTINATION);

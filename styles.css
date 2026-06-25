@@ -167,10 +167,14 @@ main {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
   align-items: center;
-  min-height: 68vh;
+  min-height: 52vh;
+}
+
+.hero-copy {
+  max-width: 1040px;
 }
 
 .eyebrow {
@@ -190,7 +194,7 @@ p {
 }
 
 h1 {
-  max-width: 760px;
+  max-width: 980px;
   margin-bottom: 1.1rem;
   font-size: clamp(2.7rem, 7vw, 5.85rem);
   line-height: 0.95;
