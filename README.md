@@ -16,12 +16,13 @@ Then open `http://localhost:5173`.
 - Live driving map using Leaflet and OpenStreetMap tiles
 - Browser-side geocoding with Nominatim
 - Driving route geometry and directions from the public OSRM demo server
-- Actual route-adjacent restaurants from OpenStreetMap via Overpass
+- Time-aware meal-window restaurant recommendations from OpenStreetMap via Overpass
+- Active inclement-weather alert overlay from the National Weather Service
 - Mock supplemental route recommendations
 - Theme toggle with `localStorage` persistence
 - Restaurant and gas station toggles
 - Responsive layout for desktop, tablet, and smaller screens
 
-The current prototype uses live map/routing/restaurant data and mock supplemental data for
-weather, gas stations, traffic, and POIs so the product flow can be reviewed before full API
+The current prototype uses live map/routing/restaurant/weather-alert data and mock supplemental data
+for gas stations, traffic, and POIs so the product flow can be reviewed before full API
 integration.

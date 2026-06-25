@@ -41,34 +41,6 @@
             <a class="button button-secondary" href="#routes">View sample routes</a>
           </div>
         </div>
-
-        <aside class="hero-card" aria-label="Trip readiness summary">
-          <div class="status-row">
-            <span class="status-pill good">Ready</span>
-            <span>Chicago to Nashville</span>
-          </div>
-          <div class="metric-grid">
-            <div>
-              <span class="metric-value">3</span>
-              <span class="metric-label">Route options</span>
-            </div>
-            <div>
-              <span class="metric-value">7h 12m</span>
-              <span class="metric-label">Fastest drive</span>
-            </div>
-            <div>
-              <span class="metric-value">72&deg;</span>
-              <span class="metric-label">Arrival weather</span>
-            </div>
-          </div>
-          <div class="mini-map" role="img" aria-label="Stylized route map from Chicago to Nashville">
-            <span class="map-dot origin"></span>
-            <span class="map-dot stop-a"></span>
-            <span class="map-dot stop-b"></span>
-            <span class="map-dot destination"></span>
-            <span class="map-route"></span>
-          </div>
-        </aside>
       </section>
 
       <section class="planner-section" id="planner" aria-labelledby="plannerTitle">
@@ -88,8 +60,21 @@
               <input id="departDate" name="departDate" type="date" required />
             </label>
             <label>
+              Departure time
+              <input id="departTime" name="departTime" type="time" value="08:00" required />
+            </label>
+            <label>
               Origin city or address
-              <input id="origin" name="origin" type="text" placeholder="Chicago, IL" required />
+              <input
+                id="origin"
+                name="origin"
+                type="text"
+                placeholder="1104 San Augustine Drive, Austin, TX 78733"
+                list="originSuggestions"
+                autocomplete="street-address"
+                required
+              />
+              <datalist id="originSuggestions"></datalist>
             </label>
             <label>
               Arrival at destination
@@ -97,7 +82,16 @@
             </label>
             <label>
               Final destination
-              <input id="destination" name="destination" type="text" placeholder="Nashville, TN" required />
+              <input
+                id="destination"
+                name="destination"
+                type="text"
+                placeholder="The Home Depot, Lakeway, TX"
+                list="destinationSuggestions"
+                autocomplete="street-address"
+                required
+              />
+              <datalist id="destinationSuggestions"></datalist>
             </label>
             <label>
               Leave destination
@@ -171,7 +165,7 @@
           <p class="eyebrow">Driving directions</p>
           <h2 id="mapTitle">Live route map and turn-by-turn preview.</h2>
           <p id="mapStatus" role="status">
-            Loading the sample driving route from Chicago to Nashville.
+            Loading the default driving route.
           </p>
         </div>
 
@@ -197,13 +191,11 @@
             <span class="icon-bubble">W</span>
             <div>
               <h3>Weather Along Route</h3>
-              <p>Forecast snapshots by travel segment.</p>
+              <p>Active inclement-weather alerts for the mapped route.</p>
             </div>
           </div>
-          <ul class="detail-list">
-            <li><strong>Morning:</strong> 64&deg;, clear visibility near departure.</li>
-            <li><strong>Midday:</strong> 72&deg;, light crosswinds through central segment.</li>
-            <li><strong>Evening:</strong> 68&deg;, 20% rain chance near destination.</li>
+          <ul class="detail-list" id="weatherList">
+            <li>Calculate a car route to load active weather alerts.</li>
           </ul>
         </article>
 
