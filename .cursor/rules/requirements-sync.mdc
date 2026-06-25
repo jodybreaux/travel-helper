@@ -1,0 +1,18 @@
+---
+description: Keep the software requirements document synchronized with product changes
+alwaysApply: true
+---
+
+# Requirements Sync
+
+When changing user-facing behavior, defaults, data integrations, validation, routing, map behavior,
+recommendation logic, deployment behavior, or acceptance criteria, check `SOFTWARE_REQUIREMENTS.md`.
+
+If the change affects requirements or prototype status, update the document in the same branch:
+
+- Update the relevant requirement or prototype-status section.
+- Update acceptance criteria when behavior becomes implemented or changes scope.
+- Add a short running-progress entry for notable product changes.
+- Increment the document history version for meaningful requirements updates.
+
+Do not leave shipped behavior undocumented just because the code change is small.

@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.3  
+**Version:** 1.4  
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -80,7 +80,19 @@ The application shall validate departure and destination addresses by attempting
 
 Prototype status:
 - Implemented using browser-side Nominatim geocoding.
+- Bare 5-digit ZIP inputs are normalized as Texas ZIP searches for the current Austin-area prototype
+  flow.
+- Geocoding is biased toward central Texas and ranks Texas/Austin/postcode matches ahead of lower
+  relevance results to avoid long incorrect routes for nearby ZIPs.
 - Unmatched locations produce a user-facing error.
+
+**REQ-4.1.5: Default Trip Values**  
+The application shall provide default origin and destination values for rapid prototype testing.
+
+Prototype status:
+- Origin defaults to `1105 San Augustine Dr, 78733`.
+- Destination defaults to `13601 Golden Wave Loop, 78738`.
+- Matching placeholders are kept in sync with the JavaScript default values.
 
 **REQ-4.1.3: Date Logic Validation**  
 The application shall validate logical date sequences:
@@ -156,6 +168,8 @@ Prototype status:
 - Cuisine selector remains future work.
 - Recommendations are automatically loaded when a meal window intersects the calculated driving
   route.
+- For short local trips with no breakfast, lunch, or dinner window during travel, the prototype
+  falls back to route-adjacent nearby food suggestions.
 
 **REQ-4.3.3: Restaurant Display**  
 When restaurants are enabled, the application shall display restaurants along the route.
@@ -164,6 +178,7 @@ Prototype status:
 - Implemented using OpenStreetMap restaurant data via Overpass.
 - The app samples the calculated driving route at the approximate locations/times where breakfast,
   lunch, or dinner windows occur.
+- Short local trips fall back to route sample points so nearby restaurants can still appear.
 - Restaurants are listed in the meal panel with meal type, approximate pass-through time, nearby
   road segment, cuisine/address details where available, and approximate distance from the
   meal-window area.
@@ -279,7 +294,7 @@ Prototype status:
 | Data Need | Candidate Source | Prototype Source | Status |
 |---|---|---|---|
 | Map tiles | OpenStreetMap | OpenStreetMap via Leaflet | Implemented |
-| Geocoding | Google Maps, OSM, similar | Nominatim | Implemented |
+| Geocoding | Google Maps, OSM, similar | Nominatim | Implemented with central Texas ZIP/address bias |
 | Driving route geometry | Google Maps, OSRM, similar | OSRM public demo server | Implemented |
 | Turn-by-turn directions | Google Maps, OSRM, similar | OSRM public demo server | Implemented |
 | Restaurants | Google Places, Yelp, OSM | Overpass / OpenStreetMap | Implemented |
@@ -360,6 +375,7 @@ Production note:
 - [x] Application accepts required user inputs.
 - [x] Application validates basic date sequence logic.
 - [x] Application geocodes origin and destination addresses.
+- [x] Application resolves nearby Austin ZIP trips such as `78733` to `78738` as local routes.
 - [x] Application calculates and displays a live car route.
 - [x] Application displays route geometry on a map.
 - [x] Application displays turn-by-turn driving directions.
@@ -405,6 +421,10 @@ Production note:
 - Added departure time input.
 - Updated restaurant recommendations to use actual restaurants near route areas encountered during
   breakfast, lunch, or dinner windows based on route timing.
+- Added default Austin-area test addresses for origin and destination.
+- Added central Texas ZIP/address geocoding bias to prevent nearby Austin ZIP trips from resolving
+  to distant routes.
+- Added nearby food fallback for short local trips that do not cross a standard meal window.
 - Installed Node.js and npm through Homebrew.
 - Verified `node --check app.js`.
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
@@ -431,3 +451,4 @@ Production note:
 | 1.1 | June 25, 2026 | Added prototype status, implementation decisions, data integrations, and progress log |
 | 1.2 | June 25, 2026 | Added active inclement-weather map overlay requirement and implementation status |
 | 1.3 | June 25, 2026 | Added departure time and time-aware meal-window restaurant recommendations |
+| 1.4 | June 25, 2026 | Added default address, Austin-area ZIP geocoding, and short-trip restaurant fallback status |
