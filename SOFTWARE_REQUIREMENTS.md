@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.6
+**Version:** 1.7
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -134,6 +134,8 @@ Prototype status:
 - Route geometry is displayed on a live Leaflet/OpenStreetMap map.
 - Turn-by-turn driving directions are displayed in a directions panel.
 - Selecting a route hides the other two route cards and shows a link to restore all route options.
+- Selecting an available alternate route redraws the map, directions, weather alerts, and meal
+  recommendations for that route.
 - Changes to trip inputs and user-selectable criteria automatically recalculate the preview.
 - Scenic and balanced alternatives currently use mock supplemental route data.
 
@@ -289,6 +291,8 @@ Prototype status:
 - Input collection, route display, map, directions, and detail panels are implemented.
 - Landing-page buttons switch between route info, route selection, meals, and gas pages to avoid one
   long scrollable page.
+- Landing-page navigation buttons are displayed as a left-side action rail.
+- Route entry is shown only after the user selects the route info page.
 - Main hero title is `Route-Aware Trip Planning`.
 - Footer branding displays `Cajun Travel Services`.
 - Final itinerary view remains future work.
@@ -395,6 +399,7 @@ Production note:
 - [x] Application displays turn-by-turn driving directions.
 - [x] Application recalculates route details when user-selectable trip criteria change.
 - [x] Application collapses route choices to the selected route with a link to restore all options.
+- [x] Application redraws route-specific map and detail data when an alternate route is selected.
 - [x] Application displays actual restaurants along the route.
 - [x] Application targets meal recommendations by route location at breakfast, lunch, and dinner
       clock times.
@@ -448,6 +453,8 @@ Production note:
 - Added guided route info, route selection, meals, and gas pages.
 - Added cascading date updates and fixed-time breakfast, lunch, and dinner route-location meal
   targeting.
+- Updated landing navigation to a left-side action rail and made route entry its own selectable page.
+- Updated alternate route selection to redraw the map and route-specific details.
 - Installed Node.js and npm through Homebrew.
 - Verified `node --check app.js`.
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
@@ -477,3 +484,4 @@ Production note:
 | 1.4 | June 25, 2026 | Added default address, Austin-area ZIP geocoding, and short-trip restaurant fallback status |
 | 1.5 | June 25, 2026 | Added route-selection collapse, automatic recalculation, date defaults, and branding updates |
 | 1.6 | June 25, 2026 | Added guided pages, cascading dates, and fixed-time meal targeting status |
+| 1.7 | June 25, 2026 | Added alternate route redraw and landing action rail status |

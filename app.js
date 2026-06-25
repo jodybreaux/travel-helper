@@ -78,6 +78,10 @@ let restaurantMarkers;
 let weatherAlertLayer;
 let activeRestaurants = [];
 let activeMealWindows = [];
+let activeRouteOptions = [];
+let activeOrigin;
+let activeDestination;
+let activeDepartureAt;
 let selectedRouteIndex = null;
 let previewRequestId = 0;
 
@@ -360,6 +364,7 @@ async function fetchDrivingRoute(origin, destination) {
   url.searchParams.set("overview", "full");
   url.searchParams.set("geometries", "geojson");
   url.searchParams.set("steps", "true");
+  url.searchParams.set("alternatives", "3");
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -371,7 +376,7 @@ async function fetchDrivingRoute(origin, destination) {
     throw new Error("No driving route found for those locations.");
   }
 
-  return data.routes[0];
+  return data.routes;
 }
 
 function getStepInstruction(step) {
@@ -768,6 +773,44 @@ function drawRoute(route, origin, destination) {
   map.fitBounds(routeLayer.getBounds(), { padding: [36, 36] });
 }
 
+function updateRouteCardStats(routeOptions = activeRouteOptions) {
+  routeOptions.slice(0, routes.length).forEach((route, index) => {
+    routes[index].time = formatDuration(route.duration);
+    routes[index].distance = formatDistance(route.distance);
+  });
+}
+
+async function displayRouteSelection(index, requestId = previewRequestId) {
+  const route = activeRouteOptions[index];
+  if (!route || !activeOrigin || !activeDestination) return;
+
+  selectedRouteIndex = index;
+  renderRoutes(index);
+  drawRoute(route, activeOrigin, activeDestination);
+  renderDirections(route);
+  loadWeatherAlerts(route, requestId);
+  routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(route.duration)} · ${route.legs[0].steps.length} driving steps`;
+
+  activeRestaurants = [];
+  activeMealWindows = [];
+  drawRestaurantMarkers([]);
+
+  if (!restaurantToggle.checked) {
+    renderRestaurants();
+    return;
+  }
+
+  try {
+    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants near timed meal route areas...</div>`;
+    activeRestaurants = await fetchRestaurantsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
+    if (requestId !== previewRequestId) return;
+    renderRestaurants();
+  } catch (restaurantError) {
+    if (requestId !== previewRequestId) return;
+    restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
+  }
+}
+
 async function loadDrivingDirections(originQuery, destinationQuery, departureAt = getDepartureDateTime(new FormData(tripForm)), requestId = previewRequestId) {
   if (!map) return;
 
@@ -786,30 +829,16 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
       geocodeLocation(originQuery),
       geocodeLocation(destinationQuery),
     ]);
-    const route = await fetchDrivingRoute(origin, destination);
+    const routeOptions = await fetchDrivingRoute(origin, destination);
     if (requestId !== previewRequestId) return;
-
-    routes[0].time = formatDuration(route.duration);
-    routes[0].distance = formatDistance(route.distance);
-    renderRoutes();
-    drawRoute(route, origin, destination);
-    renderDirections(route);
-    loadWeatherAlerts(route, requestId);
+    activeOrigin = origin;
+    activeDestination = destination;
+    activeDepartureAt = departureAt;
+    activeRouteOptions = routeOptions.slice(0, routes.length);
+    updateRouteCardStats(activeRouteOptions);
 
     mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
-    routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(route.duration)} · ${route.legs[0].steps.length} driving steps`;
-
-    if (restaurantToggle.checked) {
-      try {
-        restaurantList.innerHTML = `<div class="empty-state">Looking for actual restaurants near meal-window route areas...</div>`;
-        activeRestaurants = await fetchRestaurantsAlongRoute(route, departureAt);
-        if (requestId !== previewRequestId) return;
-        renderRestaurants();
-      } catch (restaurantError) {
-        if (requestId !== previewRequestId) return;
-        restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
-      }
-    }
+    await displayRouteSelection(0, requestId);
   } catch (error) {
     if (requestId !== previewRequestId) return;
     mapStatus.textContent = error.message;
@@ -818,7 +847,10 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
 }
 
 function renderRoutes(selectedIndex = selectedRouteIndex) {
-  const routesToRender = selectedIndex == null ? routes : [routes[selectedIndex]];
+  const availableRoutes = activeRouteOptions.length
+    ? routes.filter((_, index) => activeRouteOptions[index])
+    : routes;
+  const routesToRender = selectedIndex == null ? availableRoutes : [routes[selectedIndex]];
 
   routeGrid.innerHTML = routesToRender
     .map(
@@ -868,8 +900,7 @@ function renderRoutes(selectedIndex = selectedRouteIndex) {
 
   routeGrid.querySelectorAll("[data-route]").forEach((button) => {
     button.addEventListener("click", () => {
-      selectedRouteIndex = Number(button.dataset.route);
-      renderRoutes(selectedRouteIndex);
+      displayRouteSelection(Number(button.dataset.route));
       formMessage.textContent = `${routes[selectedRouteIndex].title} selected for detailed planning.`;
     });
   });
@@ -1037,7 +1068,6 @@ setupAddressAutocomplete("#origin", "#originSuggestions");
 setupAddressAutocomplete("#destination", "#destinationSuggestions");
 setupAutoPreview();
 initMap();
-showPage("route-info", { scroll: false });
 renderRoutes();
 renderRestaurants();
 renderGasStations();

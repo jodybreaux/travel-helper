@@ -186,6 +186,10 @@ main {
 }
 
 .hero-copy {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  column-gap: 2rem;
+  align-items: start;
   max-width: 1040px;
 }
 
@@ -241,6 +245,19 @@ h3 {
 .hero-actions {
   flex-wrap: wrap;
   gap: 0.85rem;
+}
+
+.page-actions {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.hero-copy > .eyebrow,
+.hero-copy > h1,
+.hero-copy > .hero-text {
+  grid-column: 2;
 }
 
 .page-actions .button.active {
@@ -745,6 +762,22 @@ a:focus-visible {
   .hero {
     min-height: auto;
     padding-top: 1rem;
+  }
+
+  .hero-copy {
+    grid-template-columns: 1fr;
+  }
+
+  .page-actions,
+  .hero-copy > .eyebrow,
+  .hero-copy > h1,
+  .hero-copy > .hero-text {
+    grid-column: 1;
+  }
+
+  .page-actions {
+    grid-row: auto;
+    margin-bottom: 1.5rem;
   }
 
   .metric-grid,
