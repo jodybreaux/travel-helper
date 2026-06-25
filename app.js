@@ -49,8 +49,8 @@ const mealWindows = [
   { name: "Dinner", start: 17, end: 21, midpoint: 19 },
 ];
 
-const DEFAULT_ORIGIN = "1104 San Augustine Dr., Austin, TX. 78733";
-const DEFAULT_DESTINATION = "13601 Golden Wave Loop, Austin, TX. 78738";
+const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
+const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
 const CENTRAL_TEXAS_VIEWBOX = "-98.25,30.75,-97.25,30.0";
 
 const root = document.documentElement;
