@@ -1,7 +1,7 @@
 const routes = [
   {
     type: "Fastest",
-    title: "Interstate Express",
+    title: "Quickest Route",
     score: "Best time",
     time: "7h 12m",
     distance: "472 mi",
@@ -76,6 +76,8 @@ let restaurantMarkers;
 let weatherAlertLayer;
 let activeRestaurants = [];
 let activeMealWindows = [];
+let selectedRouteIndex = null;
+let previewRequestId = 0;
 
 function setTheme(theme) {
   root.dataset.theme = theme;
@@ -88,12 +90,21 @@ function getToday() {
 }
 
 function setDefaultDates() {
-  const ids = ["departDate", "arrivalDate", "returnDate", "homeDate"];
-  ids.forEach((id, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() + index + 1);
-    document.querySelector(`#${id}`).value = date.toISOString().split("T")[0];
-    document.querySelector(`#${id}`).min = getToday();
+  const today = getToday();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowValue = tomorrow.toISOString().split("T")[0];
+  const defaults = {
+    departDate: today,
+    arrivalDate: today,
+    returnDate: tomorrowValue,
+    homeDate: tomorrowValue,
+  };
+
+  Object.entries(defaults).forEach(([id, value]) => {
+    const input = document.querySelector(`#${id}`);
+    input.value = value;
+    input.min = today;
   });
 }
 
@@ -624,7 +635,7 @@ async function fetchWeatherAlertsAtPoint([lon, lat]) {
   return data.features || [];
 }
 
-async function loadWeatherAlerts(route) {
+async function loadWeatherAlerts(route, requestId = previewRequestId) {
   if (!route) return;
 
   weatherList.innerHTML = "<li>Checking for active inclement-weather alerts along the route...</li>";
@@ -640,9 +651,11 @@ async function loadWeatherAlerts(route) {
     });
 
     const alerts = [...alertsById.values()];
+    if (requestId !== previewRequestId) return;
     drawWeatherAlertOverlay(alerts);
     renderWeatherAlerts(alerts);
   } catch (error) {
+    if (requestId !== previewRequestId) return;
     weatherList.innerHTML = `<li><strong>Weather overlay unavailable:</strong> ${escapeHtml(error.message)}</li>`;
   }
 }
@@ -668,7 +681,7 @@ function drawRoute(route, origin, destination) {
   map.fitBounds(routeLayer.getBounds(), { padding: [36, 36] });
 }
 
-async function loadDrivingDirections(originQuery, destinationQuery, departureAt = getDepartureDateTime(new FormData(tripForm))) {
+async function loadDrivingDirections(originQuery, destinationQuery, departureAt = getDepartureDateTime(new FormData(tripForm)), requestId = previewRequestId) {
   if (!map) return;
 
   mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
@@ -687,13 +700,14 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
       geocodeLocation(destinationQuery),
     ]);
     const route = await fetchDrivingRoute(origin, destination);
+    if (requestId !== previewRequestId) return;
 
     routes[0].time = formatDuration(route.duration);
     routes[0].distance = formatDistance(route.distance);
-    renderRoutes(0);
+    renderRoutes();
     drawRoute(route, origin, destination);
     renderDirections(route);
-    loadWeatherAlerts(route);
+    loadWeatherAlerts(route, requestId);
 
     mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
     routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(route.duration)} · ${route.legs[0].steps.length} driving steps`;
@@ -702,21 +716,29 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
       try {
         restaurantList.innerHTML = `<div class="empty-state">Looking for actual restaurants near meal-window route areas...</div>`;
         activeRestaurants = await fetchRestaurantsAlongRoute(route, departureAt);
+        if (requestId !== previewRequestId) return;
         renderRestaurants();
       } catch (restaurantError) {
+        if (requestId !== previewRequestId) return;
         restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
       }
     }
   } catch (error) {
+    if (requestId !== previewRequestId) return;
     mapStatus.textContent = error.message;
     routeSummary.textContent = "Try a more specific city, state, or street address.";
   }
 }
 
-function renderRoutes(selectedIndex = 2) {
-  routeGrid.innerHTML = routes
+function renderRoutes(selectedIndex = selectedRouteIndex) {
+  const routesToRender = selectedIndex == null ? routes : [routes[selectedIndex]];
+
+  routeGrid.innerHTML = routesToRender
     .map(
-      (route, index) => `
+      (route) => {
+        const index = routes.indexOf(route);
+
+        return `
         <article class="route-card ${index === selectedIndex ? "selected" : ""}">
           <div class="route-topline">
             <span class="route-type">${route.type}</span>
@@ -739,19 +761,37 @@ function renderRoutes(selectedIndex = 2) {
           <ul class="tag-list">
             ${route.highlights.map((highlight) => `<li>${highlight}</li>`).join("")}
           </ul>
-          <button class="button button-secondary" type="button" data-route="${index}">
-            Select route
-          </button>
+          ${
+            selectedIndex == null
+              ? `<button class="button button-secondary" type="button" data-route="${index}">Select route</button>`
+              : `<span class="route-score">Selected</span>`
+          }
         </article>
-      `,
+      `;
+      },
     )
     .join("");
 
+  if (selectedIndex != null) {
+    routeGrid.insertAdjacentHTML(
+      "beforeend",
+      `<a class="route-link" href="#routes" data-show-routes>Show all route options</a>`,
+    );
+  }
+
   routeGrid.querySelectorAll("[data-route]").forEach((button) => {
     button.addEventListener("click", () => {
-      renderRoutes(Number(button.dataset.route));
-      formMessage.textContent = `${routes[Number(button.dataset.route)].title} selected for detailed planning.`;
+      selectedRouteIndex = Number(button.dataset.route);
+      renderRoutes(selectedRouteIndex);
+      formMessage.textContent = `${routes[selectedRouteIndex].title} selected for detailed planning.`;
     });
+  });
+
+  routeGrid.querySelector("[data-show-routes]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    selectedRouteIndex = null;
+    renderRoutes();
+    formMessage.textContent = "Showing all route options.";
   });
 }
 
@@ -824,47 +864,82 @@ function validateDates(formData) {
   return "";
 }
 
-themeToggle.addEventListener("click", () => {
-  setTheme(root.dataset.theme === "dark" ? "light" : "dark");
-});
-
-tripForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
+async function previewTrip({ scrollToRoutes = false } = {}) {
   const formData = new FormData(tripForm);
   const error = validateDates(formData);
   const mode = formData.get("mode");
-  const origin = formData.get("origin");
-  const destination = formData.get("destination");
+  const origin = formData.get("origin")?.trim();
+  const destination = formData.get("destination")?.trim();
   const departureAt = getDepartureDateTime(formData);
+  const requestId = ++previewRequestId;
 
   if (error) {
     formMessage.textContent = error;
     return;
   }
 
-  if (mode !== "Car") {
-    formMessage.textContent = `${mode} support is planned. This prototype currently previews car routes.`;
-    renderRoutes(2);
+  if (!origin || !destination) {
+    formMessage.textContent = "Enter both an origin and destination to preview routes.";
     return;
   }
 
-  formMessage.textContent = `Previewing car routes from ${origin} to ${destination}. Meal window detected during travel.`;
-  renderRoutes(2);
-  await loadDrivingDirections(origin, destination, departureAt);
-  document.querySelector("#routes").scrollIntoView({ behavior: "smooth", block: "start" });
+  selectedRouteIndex = null;
+  renderRoutes();
+  renderGasStations();
+
+  if (mode !== "Car") {
+    formMessage.textContent = `${mode} support is planned. This prototype currently previews car routes.`;
+    return;
+  }
+
+  formMessage.textContent = `Previewing car routes from ${origin} to ${destination}.`;
+  await loadDrivingDirections(origin, destination, departureAt, requestId);
+
+  if (scrollToRoutes) {
+    document.querySelector("#routes").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+const scheduleTripPreview = debounce(() => {
+  previewTrip();
+}, 700);
+
+function setupAutoPreview() {
+  tripForm.querySelectorAll("input, select").forEach((control) => {
+    if (control === gasToggle || control === restaurantToggle) return;
+
+    const eventName = control.type === "text" ? "input" : "change";
+    control.addEventListener(eventName, scheduleTripPreview);
+  });
+}
+
+themeToggle.addEventListener("click", () => {
+  setTheme(root.dataset.theme === "dark" ? "light" : "dark");
 });
 
-gasToggle.addEventListener("change", renderGasStations);
-restaurantToggle.addEventListener("change", renderRestaurants);
+tripForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await previewTrip({ scrollToRoutes: true });
+});
+
+gasToggle.addEventListener("change", () => {
+  renderGasStations();
+  scheduleTripPreview();
+});
+
+restaurantToggle.addEventListener("change", () => {
+  renderRestaurants();
+  scheduleTripPreview();
+});
 
 setTheme(localStorage.getItem("travel-helper-theme") || "light");
 setDefaultDates();
 setDefaultTripValues();
 setupAddressAutocomplete("#origin", "#originSuggestions");
 setupAddressAutocomplete("#destination", "#destinationSuggestions");
+setupAutoPreview();
 initMap();
 renderRoutes();
 renderRestaurants();
 renderGasStations();
-loadDrivingDirections(DEFAULT_ORIGIN, DEFAULT_DESTINATION);
+previewTrip();

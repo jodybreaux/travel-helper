@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.4  
+**Version:** 1.5  
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -104,6 +104,8 @@ The application shall validate logical date sequences:
 
 Prototype status:
 - Implemented for date sequence and future minimum dates.
+- Default departure and destination arrival dates are set to today.
+- Default leave-destination and return-home dates are set to tomorrow.
 
 **REQ-4.1.4: Transportation Mode Validation**  
 The application shall only calculate routes applicable to the selected transportation mode.
@@ -125,9 +127,12 @@ Each route shall display estimated travel time, distance, relevant highlights, a
 
 Prototype status:
 - Three route cards are implemented.
+- The fastest route card is labeled `Quickest Route`.
 - Fastest route uses live OSRM distance and duration.
 - Route geometry is displayed on a live Leaflet/OpenStreetMap map.
 - Turn-by-turn driving directions are displayed in a directions panel.
+- Selecting a route hides the other two route cards and shows a link to restore all route options.
+- Changes to trip inputs and user-selectable criteria automatically recalculate the preview.
 - Scenic and balanced alternatives currently use mock supplemental route data.
 
 **REQ-4.2.2: Route Options For Train Travel**  
@@ -278,6 +283,8 @@ The application shall guide users through:
 
 Prototype status:
 - Input collection, route display, map, directions, and detail panels are implemented.
+- Main hero title is `Route-Aware Trip Planning`.
+- Footer branding displays `Cajun Travel Services`.
 - Final itinerary view remains future work.
 
 ### 5.4 Accessibility
@@ -379,6 +386,8 @@ Production note:
 - [x] Application calculates and displays a live car route.
 - [x] Application displays route geometry on a map.
 - [x] Application displays turn-by-turn driving directions.
+- [x] Application recalculates route details when user-selectable trip criteria change.
+- [x] Application collapses route choices to the selected route with a link to restore all options.
 - [x] Application displays actual restaurants along the route.
 - [x] Application ties restaurant recommendations to detected meal windows and approximate
       pass-through times.
@@ -425,6 +434,8 @@ Production note:
 - Added central Texas ZIP/address geocoding bias to prevent nearby Austin ZIP trips from resolving
   to distant routes.
 - Added nearby food fallback for short local trips that do not cross a standard meal window.
+- Updated hero/footer copy, route labels, date defaults, route-selection display, and automatic
+  recalculation on user criteria changes.
 - Installed Node.js and npm through Homebrew.
 - Verified `node --check app.js`.
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
@@ -452,3 +463,4 @@ Production note:
 | 1.2 | June 25, 2026 | Added active inclement-weather map overlay requirement and implementation status |
 | 1.3 | June 25, 2026 | Added departure time and time-aware meal-window restaurant recommendations |
 | 1.4 | June 25, 2026 | Added default address, Austin-area ZIP geocoding, and short-trip restaurant fallback status |
+| 1.5 | June 25, 2026 | Added route-selection collapse, automatic recalculation, date defaults, and branding updates |

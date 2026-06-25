@@ -599,6 +599,14 @@ a:focus-visible {
   font-weight: 700;
 }
 
+.route-link {
+  align-self: center;
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
 .details-layout {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
