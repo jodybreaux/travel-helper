@@ -88,6 +88,10 @@
               <input id="departDate" name="departDate" type="date" required />
             </label>
             <label>
+              Departure time
+              <input id="departTime" name="departTime" type="time" value="08:00" required />
+            </label>
+            <label>
               Origin city or address
               <input id="origin" name="origin" type="text" placeholder="Chicago, IL" required />
             </label>
@@ -197,13 +201,11 @@
             <span class="icon-bubble">W</span>
             <div>
               <h3>Weather Along Route</h3>
-              <p>Forecast snapshots by travel segment.</p>
+              <p>Active inclement-weather alerts for the mapped route.</p>
             </div>
           </div>
-          <ul class="detail-list">
-            <li><strong>Morning:</strong> 64&deg;, clear visibility near departure.</li>
-            <li><strong>Midday:</strong> 72&deg;, light crosswinds through central segment.</li>
-            <li><strong>Evening:</strong> 68&deg;, 20% rain chance near destination.</li>
+          <ul class="detail-list" id="weatherList">
+            <li>Calculate a car route to load active weather alerts.</li>
           </ul>
         </article>
 

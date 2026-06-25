@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.1  
+**Version:** 1.3  
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -45,6 +45,7 @@ personalized options for dining and fuel stops.
 | Input Field | Description | Format/Constraints | Prototype Status |
 |---|---|---|---|
 | Date of Departure from Origin | Start date of trip | Date picker | Implemented |
+| Time of Departure from Origin | Start time of trip | Time picker | Implemented |
 | Departure City/Address | Origin location | Text input with geocoding | Implemented with Nominatim |
 | Date(s) at Final Destination | Arrival date at destination | Date picker | Implemented |
 | Location of Final Destination | Destination address | Text input with geocoding | Implemented with Nominatim |
@@ -141,8 +142,10 @@ Prototype status:
 The application shall automatically detect standard meal-time windows during travel.
 
 Prototype status:
-- UI copy currently indicates meal-window detection.
-- Time-based detection logic remains future work.
+- Implemented for car routes using selected departure date, departure time, selected timezone, and
+  OSRM step durations.
+- The app estimates when the user will pass through route areas and detects breakfast, lunch, and
+  dinner windows.
 
 **REQ-4.3.2: Dining Prompts**  
 When meal times are detected, the application shall offer restaurant recommendations and cuisine
@@ -151,14 +154,20 @@ selection.
 Prototype status:
 - Restaurant toggle is implemented.
 - Cuisine selector remains future work.
+- Recommendations are automatically loaded when a meal window intersects the calculated driving
+  route.
 
 **REQ-4.3.3: Restaurant Display**  
 When restaurants are enabled, the application shall display restaurants along the route.
 
 Prototype status:
 - Implemented using OpenStreetMap restaurant data via Overpass.
-- The app samples points along the calculated driving route and fetches nearby named restaurants.
-- Restaurants are listed in the meal panel and displayed as map markers.
+- The app samples the calculated driving route at the approximate locations/times where breakfast,
+  lunch, or dinner windows occur.
+- Restaurants are listed in the meal panel with meal type, approximate pass-through time, nearby
+  road segment, cuisine/address details where available, and approximate distance from the
+  meal-window area.
+- Restaurants are displayed as map markers.
 - Ratings are not available from OSM and remain future work through another provider.
 
 ### 4.4 Weather Integration
@@ -173,7 +182,20 @@ Prototype status:
 Weather information shall include temperature, precipitation, wind, visibility, and alerts.
 
 Prototype status:
-- Mock weather content only.
+- Active National Weather Service alerts are implemented for routes inside the United States.
+- Alert polygons are drawn as a map overlay using severity-based colors.
+- Alert event types and severity are summarized in the weather panel.
+- Temperature, precipitation, wind, and visibility forecasts remain future work.
+
+**REQ-4.4.4: Inclement Weather Map Overlay**  
+The application shall visually indicate active inclement-weather areas that intersect or surround the
+mapped route.
+
+Prototype status:
+- Implemented using the National Weather Service active alerts API.
+- Alert areas are requested by sampling points along the active driving route.
+- Extreme, severe, moderate, and minor alerts use distinct overlay colors and a map legend.
+- Overlay support is currently limited to United States routes covered by the NWS API.
 
 **REQ-4.4.3: Weather Impact On Route Calculation**  
 The application shall consider weather when estimating travel time and recommending alternatives.
@@ -261,7 +283,8 @@ Prototype status:
 | Driving route geometry | Google Maps, OSRM, similar | OSRM public demo server | Implemented |
 | Turn-by-turn directions | Google Maps, OSRM, similar | OSRM public demo server | Implemented |
 | Restaurants | Google Places, Yelp, OSM | Overpass / OpenStreetMap | Implemented |
-| Weather | OpenWeatherMap, WeatherAPI, similar | None | Future work |
+| Weather alerts | National Weather Service, OpenWeatherMap, WeatherAPI | National Weather Service active alerts | Implemented for US routes |
+| Weather forecast | OpenWeatherMap, WeatherAPI, similar | None | Future work |
 | Traffic incidents | Google Maps, HERE, TomTom | None | Future work |
 | Gas stations | Places API, OSM, similar | Mock data | Future work |
 | Public transit | GTFS and transit APIs | None | Future work |
@@ -277,6 +300,7 @@ Prototype status:
 - Nominatim for geocoding.
 - OSRM public demo server for driving route geometry and directions.
 - Overpass API for actual restaurant data.
+- National Weather Service API for active weather alerts.
 - Python static server for local preview.
 - Node.js installed locally for JavaScript checks and future tooling.
 
@@ -323,6 +347,7 @@ Prototype status:
 - Nominatim geocoding.
 - OSRM public demo server.
 - Overpass API.
+- National Weather Service API.
 
 Production note:
 - Public demo and community APIs are suitable for prototype validation but should not be treated as
@@ -339,6 +364,9 @@ Production note:
 - [x] Application displays route geometry on a map.
 - [x] Application displays turn-by-turn driving directions.
 - [x] Application displays actual restaurants along the route.
+- [x] Application ties restaurant recommendations to detected meal windows and approximate
+      pass-through times.
+- [x] Application displays active inclement-weather alert overlays for US routes.
 - [x] Application displays gas stations when toggle is enabled.
 - [ ] Application calculates three fully distinct live car routes.
 - [ ] Application displays weather forecasts for travel dates and locations.
@@ -372,6 +400,11 @@ Production note:
 - Added OSRM driving route calculation, route geometry, and turn-by-turn directions.
 - Added actual restaurant lookup along the route using Overpass/OpenStreetMap data.
 - Added restaurant markers to the map.
+- Added National Weather Service active-alert overlay for inclement weather on the map.
+- Added weather severity legend and weather-alert summary panel.
+- Added departure time input.
+- Updated restaurant recommendations to use actual restaurants near route areas encountered during
+  breakfast, lunch, or dinner windows based on route timing.
 - Installed Node.js and npm through Homebrew.
 - Verified `node --check app.js`.
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
@@ -396,3 +429,5 @@ Production note:
 |---|---|---|
 | 1.0 | June 25, 2026 | Initial SRD provided by user |
 | 1.1 | June 25, 2026 | Added prototype status, implementation decisions, data integrations, and progress log |
+| 1.2 | June 25, 2026 | Added active inclement-weather map overlay requirement and implementation status |
+| 1.3 | June 25, 2026 | Added departure time and time-aware meal-window restaurant recommendations |
