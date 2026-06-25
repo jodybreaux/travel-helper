@@ -51,6 +51,7 @@ const mealWindows = [
 
 const DEFAULT_ORIGIN = "1104 San Augustine Dr., Austin, TX. 78733";
 const DEFAULT_DESTINATION = "13601 Golden Wave Loop, Austin, TX. 78738";
+const CENTRAL_TEXAS_VIEWBOX = "-98.25,30.75,-97.25,30.0";
 
 const root = document.documentElement;
 const themeToggle = document.querySelector("#themeToggle");
@@ -108,6 +109,30 @@ function debounce(callback, delay = 300) {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => callback(...args), delay);
   };
+}
+
+function normalizeLocationQuery(query) {
+  const trimmed = query.trim();
+  return /^\d{5}$/.test(trimmed) ? `${trimmed}, Texas, United States` : trimmed;
+}
+
+function getGeocodeScore(result, originalQuery) {
+  const address = result.address || {};
+  const displayName = (result.display_name || "").toLowerCase();
+  const query = originalQuery.trim();
+  let score = 0;
+
+  if (address.state === "Texas") score += 50;
+  if (address.city === "Austin" || address.town === "Austin" || address.village === "Austin") score += 20;
+  if (address.postcode && query.length >= 5 && address.postcode.startsWith(query.slice(0, 5))) score += 40;
+  if (displayName.includes("austin")) score += 10;
+  if (displayName.includes("texas")) score += 10;
+
+  return score + Number(result.importance || 0);
+}
+
+function getBestGeocodeResult(results, originalQuery) {
+  return [...results].sort((a, b) => getGeocodeScore(b, originalQuery) - getGeocodeScore(a, originalQuery))[0];
 }
 
 function initMap() {
@@ -184,8 +209,11 @@ function addWeatherLegend() {
 async function geocodeLocation(query) {
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "1");
-  url.searchParams.set("q", query);
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("countrycodes", "us");
+  url.searchParams.set("viewbox", CENTRAL_TEXAS_VIEWBOX);
+  url.searchParams.set("q", normalizeLocationQuery(query));
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -197,10 +225,12 @@ async function geocodeLocation(query) {
     throw new Error(`No location found for "${query}".`);
   }
 
+  const bestResult = getBestGeocodeResult(results, query);
+
   return {
-    name: results[0].display_name,
-    lat: Number(results[0].lat),
-    lon: Number(results[0].lon),
+    name: bestResult.display_name,
+    lat: Number(bestResult.lat),
+    lon: Number(bestResult.lon),
   };
 }
 
@@ -210,7 +240,8 @@ async function fetchAddressSuggestions(query) {
   url.searchParams.set("limit", "5");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("countrycodes", "us");
-  url.searchParams.set("q", query);
+  url.searchParams.set("viewbox", CENTRAL_TEXAS_VIEWBOX);
+  url.searchParams.set("q", normalizeLocationQuery(query));
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -382,6 +413,21 @@ function getMealWindowPoints(route, departureAt) {
   );
 }
 
+function getNearbyFoodPoints(route, departureAt) {
+  return getRestaurantSearchPoints(route).map((point) => {
+    const [lon, lat] = Array.isArray(point) ? point : [point.lon, point.lat];
+
+    return {
+      meal: "Nearby food",
+      mealMidpoint: getHourOfDay(departureAt),
+      passTime: departureAt,
+      lon,
+      lat,
+      road: "route area",
+    };
+  });
+}
+
 function getDepartureDateTime(formData) {
   const date = formData.get("departDate") || document.querySelector("#departDate").value;
   const time = formData.get("departTime") || document.querySelector("#departTime").value || "08:00";
@@ -425,14 +471,15 @@ function normalizeRestaurant(element, mealPoints = []) {
 
 async function fetchRestaurantsAlongRoute(route, departureAt) {
   const mealPoints = getMealWindowPoints(route, departureAt);
-  activeMealWindows = mealPoints;
+  const lookupPoints = mealPoints.length ? mealPoints : getNearbyFoodPoints(route, departureAt);
+  activeMealWindows = lookupPoints;
 
-  if (!mealPoints.length) {
+  if (!lookupPoints.length) {
     return [];
   }
 
   const body = new URLSearchParams({
-    data: buildRestaurantQuery(mealPoints),
+    data: buildRestaurantQuery(lookupPoints),
   });
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
@@ -467,7 +514,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
   const restaurantsById = new Map();
 
   data.elements
-    .map((element) => normalizeRestaurant(element, mealPoints))
+    .map((element) => normalizeRestaurant(element, lookupPoints))
     .filter(Boolean)
     .forEach((restaurant) => {
       restaurantsById.set(restaurant.id, restaurant);
