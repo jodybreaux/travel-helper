@@ -6,7 +6,7 @@ const routes = [
     time: "7h 12m",
     distance: "472 mi",
     summary: "Prioritizes major highways and avoids known construction near metro areas.",
-    highlights: ["Low delay", "2 weather checks", "1 meal stop"],
+    highlights: ["Low delay", "2 weather checks", "Food + gas stops"],
   },
   {
     type: "Scenic",
@@ -15,7 +15,7 @@ const routes = [
     time: "8h 05m",
     distance: "498 mi",
     summary: "Adds landmark-rich segments and a more relaxed lunch stop near a downtown district.",
-    highlights: ["6 attractions", "Lunch window", "Photo stops"],
+    highlights: ["6 attractions", "Food + gas stops", "Photo stops"],
   },
   {
     type: "Balanced",
@@ -24,7 +24,7 @@ const routes = [
     time: "7h 34m",
     distance: "486 mi",
     summary: "Balances arrival time, traffic exposure, weather conditions, and attractions.",
-    highlights: ["4 attractions", "Avoids delays", "Fuel friendly"],
+    highlights: ["4 attractions", "Avoids delays", "Food + gas stops"],
   },
 ];
 
@@ -43,13 +43,9 @@ const gasStations = [
   },
 ];
 
-const mealWindows = [
-  { name: "Breakfast", targetHour: 7 },
-  { name: "Lunch", targetHour: 12 },
-  { name: "Dinner", targetHour: 19 },
-];
 const MEAL_SEARCH_RADIUS_METERS = 8000;
-const MAX_RESTAURANTS_PER_MEAL = 3;
+const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
+const MAX_RESTAURANTS_PER_STOP = 3;
 
 const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
 const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
@@ -79,7 +75,7 @@ let destinationMarker;
 let restaurantMarkers;
 let weatherAlertLayer;
 let activeRestaurants = [];
-let activeMealWindows = [];
+let activeTripStops = [];
 let activeRouteOptions = [];
 let activeOrigin;
 let activeDestination;
@@ -440,45 +436,6 @@ function getHourOfDay(date) {
   return hour + minute / 60;
 }
 
-function getZonedDateParts(date, timezone = getSelectedTimezone()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-    timeZone: timezone,
-  }).formatToParts(date);
-  const valueFor = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
-
-  return {
-    year: valueFor("year"),
-    month: valueFor("month"),
-    day: valueFor("day"),
-    hour: valueFor("hour"),
-    minute: valueFor("minute"),
-    second: valueFor("second"),
-  };
-}
-
-function getTimeZoneOffsetMs(date, timezone = getSelectedTimezone()) {
-  const parts = getZonedDateParts(date, timezone);
-  const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
-  return zonedAsUtc - date.getTime();
-}
-
-function getDateInTimezone(year, month, day, hour, timezone = getSelectedTimezone()) {
-  const utcGuess = Date.UTC(year, month - 1, day, hour, 0, 0);
-  const firstPass = new Date(utcGuess - getTimeZoneOffsetMs(new Date(utcGuess), timezone));
-  return new Date(utcGuess - getTimeZoneOffsetMs(firstPass, timezone));
-}
-
-function getMealPointId(meal, passTime) {
-  return `${meal}-${passTime.toISOString()}`;
-}
-
 function getDistanceMiles(a, b) {
   const radiusMiles = 3958.8;
   const toRadians = (degrees) => (degrees * Math.PI) / 180;
@@ -493,68 +450,72 @@ function getDistanceMiles(a, b) {
   return 2 * radiusMiles * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
-function getRouteCoordinateAtElapsed(route, elapsedTargetSeconds) {
+function getMealNameForStop(date) {
+  const hour = getHourOfDay(date);
+
+  if (hour >= 4 && hour < 10.5) return "Breakfast";
+  if (hour >= 10.5 && hour < 16.5) return "Lunch";
+  return "Dinner";
+}
+
+function getRoutePositionAtElapsed(route, elapsedTargetSeconds) {
   let elapsedSeconds = 0;
+  let distanceMeters = 0;
   const steps = route.legs.flatMap((leg) => leg.steps);
 
   for (const step of steps) {
     const duration = step.duration || 0;
+    const distance = step.distance || 0;
     const nextElapsedSeconds = elapsedSeconds + duration;
     const coordinates = step.geometry?.coordinates || [];
 
     if (elapsedTargetSeconds <= nextElapsedSeconds) {
+      const fraction = duration ? (elapsedTargetSeconds - elapsedSeconds) / duration : 0;
+      const distanceFromOriginMiles = (distanceMeters + distance * fraction) / 1609.344;
+
       if (coordinates.length) {
-        const fraction = duration ? (elapsedTargetSeconds - elapsedSeconds) / duration : 0;
         const index = Math.max(0, Math.min(coordinates.length - 1, Math.round(fraction * (coordinates.length - 1))));
         const [lon, lat] = coordinates[index];
-        return { lon, lat, road: step.name || "route segment" };
+        return { lon, lat, road: step.name || "route segment", distanceFromOriginMiles };
       }
 
       const [lon, lat] = step.maneuver?.location || [];
       if (lon != null && lat != null) {
-        return { lon, lat, road: step.name || "route segment" };
+        return { lon, lat, road: step.name || "route segment", distanceFromOriginMiles };
       }
     }
 
     elapsedSeconds = nextElapsedSeconds;
+    distanceMeters += distance;
   }
 
   const [lon, lat] = route.geometry.coordinates.at(-1) || [];
-  return lon != null && lat != null ? { lon, lat, road: "route area" } : null;
+  return lon != null && lat != null
+    ? { lon, lat, road: "route area", distanceFromOriginMiles: (route.distance || distanceMeters) / 1609.344 }
+    : null;
 }
 
-function getMealWindowPoints(route, departureAt) {
-  const arrivalAt = new Date(departureAt.getTime() + (route.duration || 0) * 1000);
-  const timezone = getSelectedTimezone();
-  const departureParts = getZonedDateParts(departureAt, timezone);
-  const tripDays = Math.max(1, Math.ceil((arrivalAt.getTime() - departureAt.getTime()) / 86400000) + 1);
-  const mealPoints = [];
+function getFourHourTripStops(route, departureAt) {
+  const stopCount = Math.floor((route.duration || 0) / TRIP_STOP_INTERVAL_SECONDS);
+  const tripStops = [];
 
-  for (let dayOffset = 0; dayOffset <= tripDays; dayOffset += 1) {
-    const calendarDate = new Date(Date.UTC(departureParts.year, departureParts.month - 1, departureParts.day + dayOffset));
-    const year = calendarDate.getUTCFullYear();
-    const month = calendarDate.getUTCMonth() + 1;
-    const day = calendarDate.getUTCDate();
+  for (let stopNumber = 1; stopNumber <= stopCount; stopNumber += 1) {
+    const elapsedSeconds = stopNumber * TRIP_STOP_INTERVAL_SECONDS;
+    const passTime = new Date(departureAt.getTime() + elapsedSeconds * 1000);
+    const location = getRoutePositionAtElapsed(route, elapsedSeconds);
+    if (!location) continue;
 
-    mealWindows.forEach((meal) => {
-      const passTime = getDateInTimezone(year, month, day, meal.targetHour, timezone);
-      if (passTime < departureAt || passTime > arrivalAt) return;
-
-      const elapsedSeconds = (passTime.getTime() - departureAt.getTime()) / 1000;
-      const location = getRouteCoordinateAtElapsed(route, elapsedSeconds);
-      if (!location) return;
-
-      mealPoints.push({
-        id: getMealPointId(meal.name, passTime),
-        meal: meal.name,
-        mealMidpoint: meal.targetHour,
-        passTime,
-        ...location,
-      });
+    tripStops.push({
+      id: `stop-${stopNumber}-${passTime.toISOString()}`,
+      stopNumber,
+      meal: getMealNameForStop(passTime),
+      passTime,
+      elapsedSeconds,
+      ...location,
     });
   }
 
-  return mealPoints.sort((a, b) => a.passTime - b.passTime);
+  return tripStops;
 }
 
 function getDepartureDateTime(formData) {
@@ -564,7 +525,7 @@ function getDepartureDateTime(formData) {
   return new Date(`${date}T${time}`);
 }
 
-function normalizeRestaurant(element, mealPoints = []) {
+function normalizeRestaurant(element, tripStops = []) {
   const tags = element.tags || {};
   const lat = element.lat ?? element.center?.lat;
   const lon = element.lon ?? element.center?.lon;
@@ -572,7 +533,7 @@ function normalizeRestaurant(element, mealPoints = []) {
   if (!tags.name || lat == null || lon == null) return null;
 
   const location = { lat, lon };
-  const mealPoint = mealPoints
+  const tripStop = tripStops
     .map((point) => ({
       ...point,
       distanceMiles: getDistanceMiles(location, point),
@@ -588,11 +549,12 @@ function normalizeRestaurant(element, mealPoints = []) {
     id: `${element.type}-${element.id}`,
     name: tags.name,
     cuisine,
-    mealPointId: mealPoint?.id,
-    meal: mealPoint?.meal || "Meal stop",
-    passTime: mealPoint?.passTime,
-    road: mealPoint?.road || "route area",
-    distanceMiles: mealPoint?.distanceMiles,
+    tripStopId: tripStop?.id,
+    meal: tripStop?.meal || "Meal stop",
+    passTime: tripStop?.passTime,
+    road: tripStop?.road || "route area",
+    distanceFromOriginMiles: tripStop?.distanceFromOriginMiles,
+    distanceMiles: tripStop?.distanceMiles,
     details: `${cuisine}${address ? ` · ${address}` : ""}${hours}`,
     lat,
     lon,
@@ -600,15 +562,15 @@ function normalizeRestaurant(element, mealPoints = []) {
 }
 
 async function fetchRestaurantsAlongRoute(route, departureAt) {
-  const mealPoints = getMealWindowPoints(route, departureAt);
-  activeMealWindows = mealPoints;
+  const tripStops = activeTripStops.length ? activeTripStops : getFourHourTripStops(route, departureAt);
+  activeTripStops = tripStops;
 
-  if (!mealPoints.length) {
+  if (!tripStops.length) {
     return [];
   }
 
   const body = new URLSearchParams({
-    data: buildRestaurantQuery(mealPoints),
+    data: buildRestaurantQuery(tripStops),
   });
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
@@ -643,7 +605,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
   const restaurantsById = new Map();
 
   data.elements
-    .map((element) => normalizeRestaurant(element, mealPoints))
+    .map((element) => normalizeRestaurant(element, tripStops))
     .filter(Boolean)
     .forEach((restaurant) => {
       restaurantsById.set(restaurant.id, restaurant);
@@ -655,8 +617,8 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
       return timeOrder || a.distanceMiles - b.distanceMiles;
     })
     .filter((restaurant, index, restaurants) => {
-      const mealCount = restaurants.slice(0, index).filter((item) => item.mealPointId === restaurant.mealPointId).length;
-      return mealCount < MAX_RESTAURANTS_PER_MEAL;
+      const stopCount = restaurants.slice(0, index).filter((item) => item.tripStopId === restaurant.tripStopId).length;
+      return stopCount < MAX_RESTAURANTS_PER_STOP;
     });
 }
 
@@ -818,8 +780,9 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
   routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(route.duration)} · ${route.legs[0].steps.length} driving steps`;
 
   activeRestaurants = [];
-  activeMealWindows = [];
+  activeTripStops = getFourHourTripStops(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
   drawRestaurantMarkers([]);
+  renderGasStations();
 
   if (!restaurantToggle.checked) {
     renderRestaurants();
@@ -827,10 +790,11 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
   }
 
   try {
-    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants near timed meal route areas...</div>`;
+    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants near four-hour food and gas stops...</div>`;
     activeRestaurants = await fetchRestaurantsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
     if (requestId !== previewRequestId) return;
     renderRestaurants();
+    renderGasStations();
   } catch (restaurantError) {
     if (requestId !== previewRequestId) return;
     restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
@@ -844,9 +808,13 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
   routeSummary.textContent = "Calculating route...";
   directionsList.innerHTML = "";
   activeRestaurants = [];
-  activeMealWindows = [];
+  activeTripStops = [];
   if (restaurantToggle.checked) {
-    restaurantList.innerHTML = `<div class="empty-state">Checking the route timing for meal windows...</div>`;
+    restaurantList.innerHTML = `<div class="empty-state">Checking the route timing for four-hour food stops...</div>`;
+  }
+  if (gasToggle.checked) {
+    gasPanel.className = "empty-state";
+    gasPanel.innerHTML = "Checking the route timing for four-hour gas stops...";
   }
   drawRestaurantMarkers([]);
 
@@ -946,33 +914,33 @@ function renderRestaurants() {
     return;
   }
 
-  if (!activeMealWindows.length) {
-    restaurantList.innerHTML = `<div class="empty-state">No breakfast, lunch, or dinner window falls within this route based on the selected departure time.</div>`;
+  if (!activeTripStops.length) {
+    restaurantList.innerHTML = `<div class="empty-state">No four-hour food stop falls within this route based on the selected departure time.</div>`;
     return;
   }
 
-  restaurantList.innerHTML = activeMealWindows
+  restaurantList.innerHTML = activeTripStops
     .map(
-      (mealPoint) => {
-        const options = activeRestaurants.filter((restaurant) => restaurant.mealPointId === mealPoint.id);
+      (tripStop) => {
+        const options = activeRestaurants.filter((restaurant) => restaurant.tripStopId === tripStop.id);
         const optionMarkup = options.length
           ? options
               .map(
                 (stop) => `
                   <div class="stop-card">
                     <strong>${escapeHtml(stop.name)}</strong>
-                    <span>${escapeHtml(stop.details)}${Number.isFinite(stop.distanceMiles) ? ` · ${stop.distanceMiles.toFixed(1)} mi from ${mealPoint.meal.toLowerCase()} area` : ""}</span>
+                    <span>${escapeHtml(stop.details)}${Number.isFinite(stop.distanceMiles) ? ` · ${stop.distanceMiles.toFixed(1)} mi from stop area` : ""}</span>
                   </div>
                 `,
               )
               .join("")
-          : `<div class="empty-state">No named restaurants found near this ${escapeHtml(mealPoint.meal.toLowerCase())} stop.</div>`;
+          : `<div class="empty-state">No named restaurants found near this four-hour stop.</div>`;
 
         return `
-          <section class="meal-stop-card" aria-label="${escapeHtml(mealPoint.meal)} food options">
+          <section class="meal-stop-card" aria-label="${escapeHtml(tripStop.meal)} food options">
             <div class="meal-stop-heading">
-              <strong>${escapeHtml(mealPoint.meal)} around ${escapeHtml(formatMealTime(mealPoint.passTime))}</strong>
-              <span>Estimated near ${escapeHtml(mealPoint.road)}</span>
+              <strong>${escapeHtml(tripStop.meal)} stop around ${escapeHtml(formatMealTime(tripStop.passTime))}</strong>
+              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedSeconds))} into the drive · near ${escapeHtml(tripStop.road)}</span>
             </div>
             <div class="meal-stop-options">
               ${optionMarkup}
@@ -985,6 +953,18 @@ function renderRestaurants() {
   drawRestaurantMarkers(activeRestaurants);
 }
 
+function getGasSuggestionsForStop(tripStop) {
+  return gasStations.map((station, index) => {
+    const stationNotes = station.details.replace(/^[^·]+ · /, "");
+    const distanceFromStop = 0.6 + ((tripStop.stopNumber + index) % 4) * 0.45;
+
+    return {
+      name: station.name,
+      details: `${distanceFromStop.toFixed(1)} mi from stop area · ${stationNotes}`,
+    };
+  });
+}
+
 function renderGasStations() {
   if (!gasToggle.checked) {
     gasPanel.className = "empty-state";
@@ -992,15 +972,39 @@ function renderGasStations() {
     return;
   }
 
+  if (!activeTripStops.length) {
+    gasPanel.className = "empty-state";
+    gasPanel.innerHTML = "No four-hour gas stop falls within this route based on the selected departure time.";
+    return;
+  }
+
   gasPanel.className = "restaurant-list";
-  gasPanel.innerHTML = gasStations
+  gasPanel.innerHTML = activeTripStops
     .map(
-      (stop) => `
-        <div class="stop-card">
-          <strong>${stop.name}</strong>
-          <span>${stop.details}</span>
-        </div>
-      `,
+      (tripStop) => {
+        const stationMarkup = getGasSuggestionsForStop(tripStop)
+          .map(
+            (station) => `
+              <div class="stop-card">
+                <strong>${escapeHtml(station.name)}</strong>
+                <span>${escapeHtml(station.details)}</span>
+              </div>
+            `,
+          )
+          .join("");
+
+        return `
+          <section class="meal-stop-card" aria-label="${escapeHtml(tripStop.meal)} gas options">
+            <div class="meal-stop-heading">
+              <strong>Gas near ${escapeHtml(tripStop.meal.toLowerCase())} stop</strong>
+              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedSeconds))} into the drive · near ${escapeHtml(tripStop.road)}</span>
+            </div>
+            <div class="meal-stop-options">
+              ${stationMarkup}
+            </div>
+          </section>
+        `;
+      },
     )
     .join("");
 }
@@ -1046,6 +1050,8 @@ async function previewTrip({ scrollToRoutes = false } = {}) {
   }
 
   selectedRouteIndex = null;
+  activeRestaurants = [];
+  activeTripStops = [];
   renderRoutes();
   renderGasStations();
 
