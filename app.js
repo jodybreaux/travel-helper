@@ -1044,6 +1044,7 @@ function renderRestaurants() {
             <div class="meal-stop-heading">
               <strong>${escapeHtml(tripStop.label)} around ${escapeHtml(formatMealTime(tripStop.passTime))}</strong>
               <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
+              ${renderStopMapActions(tripStop)}
             </div>
             <div class="meal-stop-options">
               <span class="stop-section-label">Food options</span>
@@ -1057,6 +1058,42 @@ function renderRestaurants() {
     )
     .join("");
   drawRestaurantMarkers(activeRestaurants);
+}
+
+function getStreetViewUrl(point) {
+  const url = new URL("https://www.google.com/maps/@");
+  url.searchParams.set("api", "1");
+  url.searchParams.set("map_action", "pano");
+  url.searchParams.set("viewpoint", `${point.lat},${point.lon}`);
+  return url.toString();
+}
+
+function getDrivingDirectionsUrl(point) {
+  const url = new URL("https://www.google.com/maps/dir/");
+  url.searchParams.set("api", "1");
+  url.searchParams.set("destination", `${point.lat},${point.lon}`);
+  url.searchParams.set("travelmode", "driving");
+  return url.toString();
+}
+
+function renderStopMapActions(tripStop) {
+  const streetViewUrl = escapeHtml(getStreetViewUrl(tripStop));
+  const directionsUrl = escapeHtml(getDrivingDirectionsUrl(tripStop));
+  const stopLabel = escapeHtml(`${tripStop.label} near ${tripStop.road}`);
+
+  return `
+    <div class="stop-map-actions" aria-label="Map actions for ${stopLabel}">
+      <a class="stop-map-link street-view-link" href="${streetViewUrl}" target="_blank" rel="noopener" aria-label="Open Street View for ${stopLabel}">
+        <span class="street-view-icon" aria-hidden="true">
+          <span></span>
+        </span>
+        Street View
+      </a>
+      <a class="stop-map-link" href="${directionsUrl}" target="_blank" rel="noopener" aria-label="Open driving directions to ${stopLabel}">
+        Driving directions
+      </a>
+    </div>
+  `;
 }
 
 function getGasSuggestionsForStop(tripStop) {
@@ -1104,6 +1141,7 @@ function renderGasStations() {
             <div class="meal-stop-heading">
               <strong>Gas near ${escapeHtml(tripStop.label.toLowerCase())}</strong>
               <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
+              ${renderStopMapActions(tripStop)}
             </div>
             <div class="meal-stop-options">
               ${stationMarkup}

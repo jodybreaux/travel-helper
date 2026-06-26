@@ -742,6 +742,61 @@ a:focus-visible {
   font-size: 0.88rem;
 }
 
+.stop-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.stop-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0 0.75rem;
+}
+
+.stop-map-link:hover,
+.stop-map-link:focus-visible {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.street-view-icon {
+  position: relative;
+  display: inline-grid;
+  width: 1.2rem;
+  height: 0.95rem;
+  place-items: center;
+  border-radius: 0.25rem;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+.street-view-icon::before {
+  position: absolute;
+  top: -0.18rem;
+  left: 0.22rem;
+  width: 0.4rem;
+  height: 0.22rem;
+  border-radius: 0.15rem 0.15rem 0 0;
+  background: inherit;
+  content: "";
+}
+
+.street-view-icon span {
+  width: 0.42rem;
+  height: 0.42rem;
+  border: 2px solid white;
+  border-radius: 999px;
+}
+
 .meal-stop-options {
   display: grid;
   gap: 0.6rem;

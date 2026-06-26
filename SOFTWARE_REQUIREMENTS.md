@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.3
+**Version:** 2.4
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -195,6 +195,8 @@ Prototype status:
   road segment, cuisine/address details where available, and approximate distance from the stop area.
 - Each food stop group also lists paired gas options immediately after the food options, and
   alternating group colors distinguish consecutive food/gas stops.
+- Each shared food/gas stop includes a Street View action with a picture-style icon and a Google
+  Maps driving-directions link to the stop area's coordinates.
 - Restaurants are displayed as map markers.
 - Ratings are not available from OSM and remain future work through another provider.
 
@@ -263,6 +265,8 @@ Prototype status:
 - Mock gas station names and fuel details are displayed with approximate distance from each shared
   four-hour food/gas stop.
 - Gas station options also appear immediately after food options in the meal recommendations panel.
+- Each gas stop group includes the same Street View and driving-directions links as the paired food
+  stop area.
 
 ## 5. User Interface Requirements
 
@@ -413,6 +417,7 @@ Production note:
 - [x] Application targets meal recommendations every four hours of driving time.
 - [x] Application ties restaurant and gas recommendations to shared route stops with approximate
       pass-through times, one-hour food-stop timing, and miles from origin.
+- [x] Application provides Street View and driving-directions links for shared food/gas stop areas.
 - [x] Application displays active inclement-weather alert overlays for US routes.
 - [x] Application displays gas stations when toggle is enabled.
 - [x] Application calculates and displays up to three route-specific live car route geometries,
@@ -481,6 +486,8 @@ Production note:
 - Added route-refresh recovery so each route card is backed by its own route geometry where possible,
   alternate selections redraw the map from route-specific data, and browser cache-busting asset
   versions force the latest frontend script and styles to load.
+- Added Street View picture-icon links and driving-directions links to each shared food/gas stop
+  area, with cache-busting asset versions for the published frontend.
 
 ## 11. Glossary
 
@@ -514,3 +521,4 @@ Production note:
 | 2.1 | June 25, 2026 | Added one-hour food-stop timing, paired gas listings, and alternating stop colors |
 | 2.2 | June 25, 2026 | Improved route-entry resilience during location edits and geocoding failures |
 | 2.3 | June 25, 2026 | Added via-point route fallback generation and static asset cache busting |
+| 2.4 | June 25, 2026 | Added Street View and driving-directions links for shared food/gas stops |
