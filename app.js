@@ -810,18 +810,6 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
   if (!map) return;
 
   mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
-  routeSummary.textContent = "Calculating route...";
-  directionsList.innerHTML = "";
-  activeRestaurants = [];
-  activeTripStops = [];
-  if (restaurantToggle.checked) {
-    restaurantList.innerHTML = `<div class="empty-state">Checking the route timing for four-hour food stops...</div>`;
-  }
-  if (gasToggle.checked) {
-    gasPanel.className = "empty-state";
-    gasPanel.innerHTML = "Checking the route timing for four-hour gas stops...";
-  }
-  drawRestaurantMarkers([]);
 
   try {
     const [origin, destination] = await Promise.all([
@@ -830,6 +818,20 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     ]);
     const routeOptions = await fetchDrivingRoute(origin, destination);
     if (requestId !== previewRequestId) return;
+
+    routeSummary.textContent = "Calculating route...";
+    directionsList.innerHTML = "";
+    activeRestaurants = [];
+    activeTripStops = [];
+    if (restaurantToggle.checked) {
+      restaurantList.innerHTML = `<div class="empty-state">Checking the route timing for four-hour food stops...</div>`;
+    }
+    if (gasToggle.checked) {
+      gasPanel.className = "empty-state";
+      gasPanel.innerHTML = "Checking the route timing for four-hour gas stops...";
+    }
+    drawRestaurantMarkers([]);
+
     activeOrigin = origin;
     activeDestination = destination;
     activeDepartureAt = departureAt;
@@ -841,7 +843,10 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
   } catch (error) {
     if (requestId !== previewRequestId) return;
     mapStatus.textContent = error.message;
-    routeSummary.textContent = "Try a more specific city, state, or street address.";
+    formMessage.textContent = "Route preview paused until both locations can be found.";
+    routeSummary.textContent = activeRouteOptions.length
+      ? "Showing the previous route. Try a more specific city, state, or street address."
+      : "Try a more specific city, state, or street address.";
   }
 }
 
@@ -1068,12 +1073,6 @@ async function previewTrip({ scrollToRoutes = false } = {}) {
     return;
   }
 
-  selectedRouteIndex = null;
-  activeRestaurants = [];
-  activeTripStops = [];
-  renderRoutes();
-  renderGasStations();
-
   if (mode !== "Car") {
     formMessage.textContent = `${mode} support is planned. This prototype currently previews car routes.`;
     return;
@@ -1091,12 +1090,23 @@ const scheduleTripPreview = debounce(() => {
   previewTrip();
 }, 700);
 
+function scheduleTextFieldPreview(control) {
+  if (control.value.trim().length >= 3) {
+    scheduleTripPreview();
+  }
+}
+
 function setupAutoPreview() {
   tripForm.querySelectorAll("input, select").forEach((control) => {
     if (control === gasToggle || control === restaurantToggle) return;
 
-    const eventName = control.type === "text" ? "input" : "change";
-    control.addEventListener(eventName, () => {
+    if (control.type === "text") {
+      control.addEventListener("change", () => scheduleTextFieldPreview(control));
+      control.addEventListener("blur", () => scheduleTextFieldPreview(control));
+      return;
+    }
+
+    control.addEventListener("change", () => {
       if (control.type === "date") {
         syncDateSequence(control.id);
       }
