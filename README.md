@@ -16,7 +16,7 @@ Then open `http://localhost:5173`.
 - Live driving map using Leaflet and OpenStreetMap tiles
 - Browser-side geocoding with Nominatim
 - Driving route geometry and directions from the public OSRM demo server
-- Time-aware meal-window restaurant recommendations from OpenStreetMap via Overpass
+- Four-hour suggested food stops with restaurant recommendations from OpenStreetMap via Overpass
 - Active inclement-weather alert overlay from the National Weather Service
 - Mock supplemental route recommendations
 - Theme toggle with `localStorage` persistence

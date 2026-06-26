@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.0
+**Version:** 2.1
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -165,14 +165,15 @@ The application shall automatically plan recurring meal stops during travel.
 Prototype status:
 - Implemented for car routes using selected departure date, departure time, selected timezone, and
   OSRM step durations.
-- The app estimates where the car will be every four hours of driving time and classifies each stop
-  as breakfast, lunch, or dinner based on the selected trip timezone.
-- Each planned food stop includes approximate pass-through time, driving time into the route, nearby
-  road segment, and miles from the origin.
+- The app estimates where the car will be every four hours of driving time and labels each stop as
+  `Suggested food stop`.
+- Each planned food stop adds one hour of stop time to later trip timing and route travel estimates.
+- Each planned food stop includes approximate pass-through time, driving time into the trip including
+  prior food stops, nearby road segment, and miles from the origin.
 
 **REQ-4.3.2: Dining Prompts**  
-When meal times are detected, the application shall offer restaurant recommendations and cuisine
-selection.
+When suggested food stops are detected, the application shall offer restaurant recommendations and
+cuisine selection.
 
 Prototype status:
 - Restaurant toggle is implemented.
@@ -187,9 +188,11 @@ When restaurants are enabled, the application shall display restaurants along th
 Prototype status:
 - Implemented using OpenStreetMap restaurant data via Overpass.
 - The app samples the calculated driving route at four-hour driving intervals.
-- Restaurants are grouped by detected four-hour breakfast, lunch, or dinner stops in the meal panel
-  with approximate pass-through time, driving time, miles from origin, nearby road segment,
-  cuisine/address details where available, and approximate distance from the stop area.
+- Restaurants are grouped by detected four-hour suggested food stops in the meal panel with
+  approximate pass-through time, driving time including prior food stops, miles from origin, nearby
+  road segment, cuisine/address details where available, and approximate distance from the stop area.
+- Each food stop group also lists paired gas options immediately after the food options, and
+  alternating group colors distinguish consecutive food/gas stops.
 - Restaurants are displayed as map markers.
 - Ratings are not available from OSM and remain future work through another provider.
 
@@ -257,6 +260,7 @@ hours where available.
 Prototype status:
 - Mock gas station names and fuel details are displayed with approximate distance from each shared
   four-hour food/gas stop.
+- Gas station options also appear immediately after food options in the meal recommendations panel.
 
 ## 5. User Interface Requirements
 
@@ -404,7 +408,7 @@ Production note:
 - [x] Application displays actual restaurants along the route.
 - [x] Application targets meal recommendations every four hours of driving time.
 - [x] Application ties restaurant and gas recommendations to shared route stops with approximate
-      pass-through times and miles from origin.
+      pass-through times, one-hour food-stop timing, and miles from origin.
 - [x] Application displays active inclement-weather alert overlays for US routes.
 - [x] Application displays gas stations when toggle is enabled.
 - [ ] Application calculates three fully distinct live car routes.
@@ -464,6 +468,8 @@ Production note:
   group restaurant options by meal stop, and avoid generic nearby-food fallback suggestions.
 - Reworked trip-stop planning to calculate shared food and gas stops every four hours of driving and
   display each stop's approximate mileage from the origin.
+- Added one-hour food-stop time to trip timing, renamed food groups to `Suggested food stop`, paired
+  gas options under each food stop, and alternated food/gas group colors.
 
 ## 11. Glossary
 
@@ -494,3 +500,4 @@ Production note:
 | 1.8 | June 25, 2026 | Added mobile-first form field sizing and alignment status |
 | 1.9 | June 25, 2026 | Refined breakfast, lunch, and dinner route-position restaurant recommendations |
 | 2.0 | June 25, 2026 | Added four-hour shared food and gas stops with mileage from origin |
+| 2.1 | June 25, 2026 | Added one-hour food-stop timing, paired gas listings, and alternating stop colors |

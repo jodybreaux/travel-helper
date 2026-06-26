@@ -14,7 +14,7 @@ const routes = [
     score: "Most POIs",
     time: "8h 05m",
     distance: "498 mi",
-    summary: "Adds landmark-rich segments and a more relaxed lunch stop near a downtown district.",
+    summary: "Adds landmark-rich segments and a more relaxed suggested food stop near a downtown district.",
     highlights: ["6 attractions", "Food + gas stops", "Photo stops"],
   },
   {
@@ -45,6 +45,7 @@ const gasStations = [
 
 const MEAL_SEARCH_RADIUS_METERS = 8000;
 const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
+const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const MAX_RESTAURANTS_PER_STOP = 3;
 
 const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
@@ -450,14 +451,6 @@ function getDistanceMiles(a, b) {
   return 2 * radiusMiles * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
-function getMealNameForStop(date) {
-  const hour = getHourOfDay(date);
-
-  if (hour >= 4 && hour < 10.5) return "Breakfast";
-  if (hour >= 10.5 && hour < 16.5) return "Lunch";
-  return "Dinner";
-}
-
 function getRoutePositionAtElapsed(route, elapsedTargetSeconds) {
   let elapsedSeconds = 0;
   let distanceMeters = 0;
@@ -495,22 +488,34 @@ function getRoutePositionAtElapsed(route, elapsedTargetSeconds) {
     : null;
 }
 
+function getTripStopCount(route) {
+  return Math.floor((route.duration || 0) / TRIP_STOP_INTERVAL_SECONDS);
+}
+
+function getRouteDurationWithStops(route) {
+  return (route.duration || 0) + getTripStopCount(route) * FOOD_STOP_DURATION_SECONDS;
+}
+
 function getFourHourTripStops(route, departureAt) {
-  const stopCount = Math.floor((route.duration || 0) / TRIP_STOP_INTERVAL_SECONDS);
+  const stopCount = getTripStopCount(route);
   const tripStops = [];
 
   for (let stopNumber = 1; stopNumber <= stopCount; stopNumber += 1) {
     const elapsedSeconds = stopNumber * TRIP_STOP_INTERVAL_SECONDS;
-    const passTime = new Date(departureAt.getTime() + elapsedSeconds * 1000);
+    const priorStopSeconds = (stopNumber - 1) * FOOD_STOP_DURATION_SECONDS;
+    const passTime = new Date(departureAt.getTime() + (elapsedSeconds + priorStopSeconds) * 1000);
     const location = getRoutePositionAtElapsed(route, elapsedSeconds);
     if (!location) continue;
 
     tripStops.push({
       id: `stop-${stopNumber}-${passTime.toISOString()}`,
       stopNumber,
-      meal: getMealNameForStop(passTime),
+      label: "Suggested food stop",
       passTime,
       elapsedSeconds,
+      elapsedWithStopsSeconds: elapsedSeconds + priorStopSeconds,
+      stopDurationSeconds: FOOD_STOP_DURATION_SECONDS,
+      colorClass: stopNumber % 2 === 0 ? "stop-theme-b" : "stop-theme-a",
       ...location,
     });
   }
@@ -550,7 +555,7 @@ function normalizeRestaurant(element, tripStops = []) {
     name: tags.name,
     cuisine,
     tripStopId: tripStop?.id,
-    meal: tripStop?.meal || "Meal stop",
+    label: tripStop?.label || "Suggested food stop",
     passTime: tripStop?.passTime,
     road: tripStop?.road || "route area",
     distanceFromOriginMiles: tripStop?.distanceFromOriginMiles,
@@ -632,7 +637,7 @@ function drawRestaurantMarkers(restaurants) {
   restaurants.forEach((restaurant) => {
     L.marker([restaurant.lat, restaurant.lon])
       .addTo(restaurantMarkers)
-      .bindPopup(`<strong>${escapeHtml(restaurant.name)}</strong><br>${escapeHtml(restaurant.meal)} near ${escapeHtml(restaurant.road)}<br>${escapeHtml(restaurant.cuisine)}`);
+      .bindPopup(`<strong>${escapeHtml(restaurant.name)}</strong><br>${escapeHtml(restaurant.label)} near ${escapeHtml(restaurant.road)}<br>${escapeHtml(restaurant.cuisine)}`);
   });
 }
 
@@ -763,7 +768,7 @@ function drawRoute(route, origin, destination) {
 
 function updateRouteCardStats(routeOptions = activeRouteOptions) {
   routeOptions.slice(0, routes.length).forEach((route, index) => {
-    routes[index].time = formatDuration(route.duration);
+    routes[index].time = formatDuration(getRouteDurationWithStops(route));
     routes[index].distance = formatDistance(route.distance);
   });
 }
@@ -777,7 +782,7 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
   drawRoute(route, activeOrigin, activeDestination);
   renderDirections(route);
   loadWeatherAlerts(route, requestId);
-  routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(route.duration)} · ${route.legs[0].steps.length} driving steps`;
+  routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
 
   activeRestaurants = [];
   activeTripStops = getFourHourTripStops(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
@@ -864,7 +869,7 @@ function renderRoutes(selectedIndex = selectedRouteIndex) {
           <div class="route-stats" aria-label="${route.title} stats">
             <div>
               <strong>${route.time}</strong>
-              <span>Estimated travel</span>
+              <span>Travel with stops</span>
             </div>
             <div>
               <strong>${route.distance}</strong>
@@ -923,6 +928,7 @@ function renderRestaurants() {
     .map(
       (tripStop) => {
         const options = activeRestaurants.filter((restaurant) => restaurant.tripStopId === tripStop.id);
+        const gasOptions = getGasSuggestionsForStop(tripStop);
         const optionMarkup = options.length
           ? options
               .map(
@@ -935,15 +941,28 @@ function renderRestaurants() {
               )
               .join("")
           : `<div class="empty-state">No named restaurants found near this four-hour stop.</div>`;
+        const gasMarkup = gasOptions
+          .map(
+            (station) => `
+              <div class="stop-card">
+                <strong>${escapeHtml(station.name)}</strong>
+                <span>${escapeHtml(station.details)}</span>
+              </div>
+            `,
+          )
+          .join("");
 
         return `
-          <section class="meal-stop-card" aria-label="${escapeHtml(tripStop.meal)} food options">
+          <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} food and gas options">
             <div class="meal-stop-heading">
-              <strong>${escapeHtml(tripStop.meal)} stop around ${escapeHtml(formatMealTime(tripStop.passTime))}</strong>
-              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedSeconds))} into the drive · near ${escapeHtml(tripStop.road)}</span>
+              <strong>${escapeHtml(tripStop.label)} around ${escapeHtml(formatMealTime(tripStop.passTime))}</strong>
+              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
             </div>
             <div class="meal-stop-options">
+              <span class="stop-section-label">Food options</span>
               ${optionMarkup}
+              <span class="stop-section-label">Gas options</span>
+              ${gasMarkup}
             </div>
           </section>
         `;
@@ -994,10 +1013,10 @@ function renderGasStations() {
           .join("");
 
         return `
-          <section class="meal-stop-card" aria-label="${escapeHtml(tripStop.meal)} gas options">
+          <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">
             <div class="meal-stop-heading">
-              <strong>Gas near ${escapeHtml(tripStop.meal.toLowerCase())} stop</strong>
-              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedSeconds))} into the drive · near ${escapeHtml(tripStop.road)}</span>
+              <strong>Gas near ${escapeHtml(tripStop.label.toLowerCase())}</strong>
+              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
             </div>
             <div class="meal-stop-options">
               ${stationMarkup}
