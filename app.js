@@ -1021,8 +1021,9 @@ function renderRestaurants() {
               .map(
                 (stop) => `
                   <div class="stop-card">
-                    <strong>${escapeHtml(stop.name)}</strong>
+                    <strong>${renderPlaceLink(stop)}</strong>
                     <span>${escapeHtml(stop.details)}${Number.isFinite(stop.distanceMiles) ? ` · ${stop.distanceMiles.toFixed(1)} mi from stop area` : ""}</span>
+                    ${renderPlaceMapActions(stop, "restaurant")}
                   </div>
                 `,
               )
@@ -1032,8 +1033,9 @@ function renderRestaurants() {
           .map(
             (station) => `
               <div class="stop-card">
-                <strong>${escapeHtml(station.name)}</strong>
+                <strong>${renderPlaceLink(station)}</strong>
                 <span>${escapeHtml(station.details)}</span>
+                ${renderPlaceMapActions(station, "gas station")}
               </div>
             `,
           )
@@ -1044,7 +1046,6 @@ function renderRestaurants() {
             <div class="meal-stop-heading">
               <strong>${escapeHtml(tripStop.label)} around ${escapeHtml(formatMealTime(tripStop.passTime))}</strong>
               <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
-              ${renderStopMapActions(tripStop)}
             </div>
             <div class="meal-stop-options">
               <span class="stop-section-label">Food options</span>
@@ -1068,6 +1069,14 @@ function getStreetViewUrl(point) {
   return url.toString();
 }
 
+function getPlaceMapUrl(place) {
+  const url = new URL("https://www.google.com/maps/search/");
+  const query = [place.name, place.lat, place.lon].filter((value) => value != null).join(" ");
+  url.searchParams.set("api", "1");
+  url.searchParams.set("query", query);
+  return url.toString();
+}
+
 function getDrivingDirectionsUrl(point) {
   const url = new URL("https://www.google.com/maps/dir/");
   url.searchParams.set("api", "1");
@@ -1076,34 +1085,71 @@ function getDrivingDirectionsUrl(point) {
   return url.toString();
 }
 
-function renderStopMapActions(tripStop) {
-  const streetViewUrl = escapeHtml(getStreetViewUrl(tripStop));
-  const directionsUrl = escapeHtml(getDrivingDirectionsUrl(tripStop));
-  const stopLabel = escapeHtml(`${tripStop.label} near ${tripStop.road}`);
+function renderPlaceLink(place) {
+  const placeUrl = escapeHtml(getPlaceMapUrl(place));
+  const placeName = escapeHtml(place.name);
+
+  return `<a class="place-name-link" href="${placeUrl}" target="_blank" rel="noopener" aria-label="Open ${placeName} in Google Maps">${placeName}</a>`;
+}
+
+function renderPlaceMapActions(place, placeType) {
+  const placeUrl = escapeHtml(getPlaceMapUrl(place));
+  const streetViewUrl = escapeHtml(getStreetViewUrl(place));
+  const directionsUrl = escapeHtml(getDrivingDirectionsUrl(place));
+  const placeLabel = escapeHtml(`${place.name} ${placeType}`);
 
   return `
-    <div class="stop-map-actions" aria-label="Map actions for ${stopLabel}">
-      <a class="stop-map-link street-view-link" href="${streetViewUrl}" target="_blank" rel="noopener" aria-label="Open Street View for ${stopLabel}">
+    <div class="stop-map-actions place-map-actions" aria-label="Map actions for ${placeLabel}">
+      <a class="stop-map-link" href="${placeUrl}" target="_blank" rel="noopener" aria-label="Open ${placeLabel} in Google Maps">
+        Open place
+      </a>
+      <a class="stop-map-link street-view-link" href="${streetViewUrl}" target="_blank" rel="noopener" aria-label="Open Street View for ${placeLabel}">
         <span class="street-view-icon" aria-hidden="true">
           <span></span>
         </span>
         Street View
       </a>
-      <a class="stop-map-link" href="${directionsUrl}" target="_blank" rel="noopener" aria-label="Open driving directions to ${stopLabel}">
+      <a class="stop-map-link" href="${directionsUrl}" target="_blank" rel="noopener" aria-label="Open driving directions to ${placeLabel}">
         Driving directions
       </a>
     </div>
   `;
 }
 
+function getOffsetCoordinate(point, distanceMiles, bearingDegrees) {
+  const radiusMiles = 3958.8;
+  const angularDistance = distanceMiles / radiusMiles;
+  const bearing = (bearingDegrees * Math.PI) / 180;
+  const lat1 = (point.lat * Math.PI) / 180;
+  const lon1 = (point.lon * Math.PI) / 180;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angularDistance) +
+      Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing),
+  );
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
+      Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2),
+    );
+
+  return {
+    lat: (lat2 * 180) / Math.PI,
+    lon: (lon2 * 180) / Math.PI,
+  };
+}
+
 function getGasSuggestionsForStop(tripStop) {
   return gasStations.map((station, index) => {
     const stationNotes = station.details.replace(/^[^·]+ · /, "");
     const distanceFromStop = 0.6 + ((tripStop.stopNumber + index) % 4) * 0.45;
+    const location = getOffsetCoordinate(tripStop, distanceFromStop, 45 + index * 115);
 
     return {
       name: station.name,
       details: `${distanceFromStop.toFixed(1)} mi from stop area · ${stationNotes}`,
+      lat: location.lat,
+      lon: location.lon,
     };
   });
 }
@@ -1129,8 +1175,9 @@ function renderGasStations() {
           .map(
             (station) => `
               <div class="stop-card">
-                <strong>${escapeHtml(station.name)}</strong>
+                <strong>${renderPlaceLink(station)}</strong>
                 <span>${escapeHtml(station.details)}</span>
+                ${renderPlaceMapActions(station, "gas station")}
               </div>
             `,
           )
@@ -1141,7 +1188,6 @@ function renderGasStations() {
             <div class="meal-stop-heading">
               <strong>Gas near ${escapeHtml(tripStop.label.toLowerCase())}</strong>
               <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
-              ${renderStopMapActions(tripStop)}
             </div>
             <div class="meal-stop-options">
               ${stationMarkup}

@@ -822,6 +822,18 @@ a:focus-visible {
   display: block;
 }
 
+.place-name-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--primary), transparent 45%);
+  text-underline-offset: 0.18rem;
+}
+
+.place-name-link:hover,
+.place-name-link:focus-visible {
+  color: var(--primary);
+}
+
 .stop-card span {
   color: var(--muted);
   font-size: 0.88rem;
