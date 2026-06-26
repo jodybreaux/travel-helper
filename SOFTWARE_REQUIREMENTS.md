@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.7
+**Version:** 1.8
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -272,11 +272,13 @@ Prototype status:
 
 ### 5.2 Responsive Design
 
-The application shall be responsive and functional on desktop, tablet, and smaller screens where
-practical.
+The application shall be mobile-first while remaining responsive and functional on desktop, tablet,
+and laptop screens where practical.
 
 Prototype status:
 - Implemented with responsive CSS breakpoints.
+- Trip input text boxes and selectors use compact mobile sizing and aligned field grids, with address
+  fields kept full-width for readability.
 
 ### 5.3 Navigation And Layout
 
@@ -458,6 +460,8 @@ Production note:
 - Installed Node.js and npm through Homebrew.
 - Verified `node --check app.js`.
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
+- Tuned the trip input form for mobile-first field sizing and alignment while preserving desktop and
+  tablet layouts.
 
 ## 11. Glossary
 
@@ -485,3 +489,4 @@ Production note:
 | 1.5 | June 25, 2026 | Added route-selection collapse, automatic recalculation, date defaults, and branding updates |
 | 1.6 | June 25, 2026 | Added guided pages, cascading dates, and fixed-time meal targeting status |
 | 1.7 | June 25, 2026 | Added alternate route redraw and landing action rail status |
+| 1.8 | June 25, 2026 | Added mobile-first form field sizing and alignment status |
