@@ -28,25 +28,12 @@ const routes = [
   },
 ];
 
-const gasStations = [
-  {
-    name: "Pilot Travel Center",
-    details: "0.8 mi from route · diesel · open 24 hours",
-  },
-  {
-    name: "Shell Market",
-    details: "1.4 mi from route · regular $3.41 est.",
-  },
-  {
-    name: "Love's Travel Stop",
-    details: "2.2 mi from route · EV charging nearby",
-  },
-];
-
 const MEAL_SEARCH_RADIUS_METERS = 8000;
+const FUEL_SEARCH_RADIUS_METERS = 12000;
 const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
 const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const MAX_RESTAURANTS_PER_STOP = 3;
+const MAX_FUEL_STATIONS_PER_STOP = 3;
 const ROUTE_OPTION_COUNT = routes.length;
 const MAX_SYNTHETIC_ROUTE_ATTEMPTS = 12;
 
@@ -78,6 +65,7 @@ let destinationMarker;
 let restaurantMarkers;
 let weatherAlertLayer;
 let activeRestaurants = [];
+let activeFuelStations = [];
 let activeTripStops = [];
 let activeRouteOptions = [];
 let activeOrigin;
@@ -501,6 +489,46 @@ function buildRestaurantQuery(points) {
   return `[out:json][timeout:25];(${searches});out center 80;`;
 }
 
+function buildFuelQuery(points) {
+  const searches = points
+    .map(
+      (point) =>
+        `node["amenity"="fuel"](around:${FUEL_SEARCH_RADIUS_METERS},${point.lat},${point.lon});way["amenity"="fuel"](around:${FUEL_SEARCH_RADIUS_METERS},${point.lat},${point.lon});relation["amenity"="fuel"](around:${FUEL_SEARCH_RADIUS_METERS},${point.lat},${point.lon});`,
+    )
+    .join("");
+
+  return `[out:json][timeout:25];(${searches});out center 80;`;
+}
+
+async function fetchOverpassData(query, errorMessage) {
+  const body = new URLSearchParams({
+    data: query,
+  });
+  const endpoints = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          Accept: "application/json",
+        },
+        body,
+      });
+
+      if (response.ok) return response.json();
+    } catch {
+      // Try the next public Overpass endpoint before showing a user-facing error.
+    }
+  }
+
+  throw new Error(errorMessage);
+}
+
 function getSelectedTimezone() {
   return document.querySelector("#timezone").value;
 }
@@ -656,38 +684,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
     return [];
   }
 
-  const body = new URLSearchParams({
-    data: buildRestaurantQuery(tripStops),
-  });
-  const endpoints = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-  ];
-
-  let data;
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          Accept: "application/json",
-        },
-        body,
-      });
-
-      if (!response.ok) continue;
-
-      data = await response.json();
-      break;
-    } catch {
-      // Try the next public Overpass endpoint before showing a user-facing error.
-    }
-  }
-
-  if (!data) {
-    throw new Error("Restaurant lookup is unavailable right now.");
-  }
+  const data = await fetchOverpassData(buildRestaurantQuery(tripStops), "Restaurant lookup is unavailable right now.");
 
   const restaurantsById = new Map();
 
@@ -707,6 +704,64 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
       const stopCount = restaurants.slice(0, index).filter((item) => item.tripStopId === restaurant.tripStopId).length;
       return stopCount < MAX_RESTAURANTS_PER_STOP;
     });
+}
+
+function normalizeFuelStation(element, tripStops = []) {
+  const tags = element.tags || {};
+  const lat = element.lat ?? element.center?.lat;
+  const lon = element.lon ?? element.center?.lon;
+  const name = tags.name || tags.brand || tags.operator;
+
+  if (!name || lat == null || lon == null) return null;
+
+  const location = { lat, lon };
+  const tripStop = tripStops
+    .map((point) => ({
+      ...point,
+      distanceMiles: getDistanceMiles(location, point),
+    }))
+    .sort((a, b) => a.distanceMiles - b.distanceMiles)[0];
+  const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
+  const city = tags["addr:city"];
+  const address = [street, city].filter(Boolean).join(", ");
+  const fuelTypes = [
+    tags["fuel:diesel"] === "yes" ? "diesel" : "",
+    tags["fuel:electricity"] === "yes" ? "EV charging" : "",
+    tags["fuel:octane_87"] === "yes" ? "regular" : "",
+  ].filter(Boolean);
+  const hours = tags.opening_hours ? ` · ${tags.opening_hours}` : "";
+  const fuelDetails = fuelTypes.length ? ` · ${fuelTypes.join(", ")}` : "";
+
+  return {
+    id: `${element.type}-${element.id}`,
+    name,
+    tripStopId: tripStop?.id,
+    distanceMiles: tripStop?.distanceMiles,
+    details: `${address || "Address not listed"}${fuelDetails}${hours}`,
+    lat,
+    lon,
+  };
+}
+
+async function fetchFuelStationsAlongRoute(route, departureAt) {
+  const tripStops = activeTripStops.length ? activeTripStops : getFourHourTripStops(route, departureAt);
+  activeTripStops = tripStops;
+
+  if (!tripStops.length) {
+    return [];
+  }
+
+  const data = await fetchOverpassData(buildFuelQuery(tripStops), "Fuel station lookup is unavailable right now.");
+  const stationsById = new Map();
+
+  data.elements
+    .map((element) => normalizeFuelStation(element, tripStops))
+    .filter(Boolean)
+    .forEach((station) => {
+      stationsById.set(station.id, station);
+    });
+
+  return [...stationsById.values()];
 }
 
 function drawRestaurantMarkers(restaurants) {
@@ -867,24 +922,45 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
   routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
 
   activeRestaurants = [];
+  activeFuelStations = [];
   activeTripStops = getFourHourTripStops(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
   drawRestaurantMarkers([]);
   renderGasStations();
 
-  if (!restaurantToggle.checked) {
+  if (restaurantToggle.checked) {
+    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants near four-hour food and gas stops...</div>`;
+  } else {
     renderRestaurants();
-    return;
   }
 
-  try {
-    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants near four-hour food and gas stops...</div>`;
-    activeRestaurants = await fetchRestaurantsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
-    if (requestId !== previewRequestId) return;
-    renderRestaurants();
-    renderGasStations();
-  } catch (restaurantError) {
-    if (requestId !== previewRequestId) return;
-    restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
+  if (gasToggle.checked) {
+    gasPanel.className = "empty-state";
+    gasPanel.innerHTML = "Looking for fuel stations near the same food-stop areas...";
+  }
+
+  if (restaurantToggle.checked) {
+    try {
+      activeRestaurants = await fetchRestaurantsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
+      if (requestId !== previewRequestId) return;
+      renderRestaurants();
+    } catch (restaurantError) {
+      if (requestId !== previewRequestId) return;
+      restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
+    }
+  }
+
+  if (gasToggle.checked) {
+    try {
+      activeFuelStations = await fetchFuelStationsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
+      if (requestId !== previewRequestId) return;
+      renderGasStations();
+      if (restaurantToggle.checked) renderRestaurants();
+    } catch (fuelError) {
+      if (requestId !== previewRequestId) return;
+      gasPanel.className = "empty-state";
+      gasPanel.innerHTML = escapeHtml(fuelError.message);
+      if (restaurantToggle.checked) renderRestaurants();
+    }
   }
 }
 
@@ -904,6 +980,7 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     routeSummary.textContent = "Calculating route...";
     directionsList.innerHTML = "";
     activeRestaurants = [];
+    activeFuelStations = [];
     activeTripStops = [];
     if (restaurantToggle.checked) {
       restaurantList.innerHTML = `<div class="empty-state">Checking the route timing for four-hour food stops...</div>`;
@@ -1039,7 +1116,7 @@ function renderRestaurants() {
               </div>
             `,
           )
-          .join("");
+          .join("") || `<div class="empty-state">No named fuel stations found near this food stop yet.</div>`;
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} food and gas options">
@@ -1116,42 +1193,47 @@ function renderPlaceMapActions(place, placeType) {
   `;
 }
 
-function getOffsetCoordinate(point, distanceMiles, bearingDegrees) {
-  const radiusMiles = 3958.8;
-  const angularDistance = distanceMiles / radiusMiles;
-  const bearing = (bearingDegrees * Math.PI) / 180;
-  const lat1 = (point.lat * Math.PI) / 180;
-  const lon1 = (point.lon * Math.PI) / 180;
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(angularDistance) +
-      Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing),
-  );
-  const lon2 =
-    lon1 +
-    Math.atan2(
-      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
-      Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2),
-    );
+function getNearestRestaurantDistance(station, tripStop) {
+  const restaurants = activeRestaurants.filter((restaurant) => restaurant.tripStopId === tripStop.id);
+  if (!restaurants.length) return Number.POSITIVE_INFINITY;
 
-  return {
-    lat: (lat2 * 180) / Math.PI,
-    lon: (lon2 * 180) / Math.PI,
-  };
+  return Math.min(...restaurants.map((restaurant) => getDistanceMiles(station, restaurant)));
 }
 
 function getGasSuggestionsForStop(tripStop) {
-  return gasStations.map((station, index) => {
-    const stationNotes = station.details.replace(/^[^·]+ · /, "");
-    const distanceFromStop = 0.6 + ((tripStop.stopNumber + index) % 4) * 0.45;
-    const location = getOffsetCoordinate(tripStop, distanceFromStop, 45 + index * 115);
+  const seenStationNames = new Set();
 
-    return {
-      name: station.name,
-      details: `${distanceFromStop.toFixed(1)} mi from stop area · ${stationNotes}`,
-      lat: location.lat,
-      lon: location.lon,
-    };
-  });
+  return activeFuelStations
+    .filter((station) => station.tripStopId === tripStop.id)
+    .map((station) => ({
+      ...station,
+      foodDistanceMiles: getNearestRestaurantDistance(station, tripStop),
+    }))
+    .sort((a, b) => {
+      const foodOrder = a.foodDistanceMiles - b.foodDistanceMiles;
+      return foodOrder || a.distanceMiles - b.distanceMiles;
+    })
+    .filter((station) => {
+      const stationKey = station.name.trim().toLowerCase();
+      if (seenStationNames.has(stationKey)) return false;
+
+      seenStationNames.add(stationKey);
+      return true;
+    })
+    .slice(0, MAX_FUEL_STATIONS_PER_STOP)
+    .map((station) => {
+      const distanceText = Number.isFinite(station.distanceMiles)
+        ? `${station.distanceMiles.toFixed(1)} mi from stop area`
+        : "near stop area";
+      const foodText = Number.isFinite(station.foodDistanceMiles)
+        ? ` · ${station.foodDistanceMiles.toFixed(1)} mi from food options`
+        : "";
+
+      return {
+        ...station,
+        details: `${distanceText}${foodText} · ${station.details}`,
+      };
+    });
 }
 
 function renderGasStations() {
@@ -1181,7 +1263,7 @@ function renderGasStations() {
               </div>
             `,
           )
-          .join("");
+          .join("") || `<div class="empty-state">No named fuel stations found near this four-hour stop.</div>`;
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">

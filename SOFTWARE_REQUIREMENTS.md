@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.5
+**Version:** 2.6
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -254,20 +254,21 @@ The application shall provide a user-selectable button to toggle gas station dis
 
 Prototype status:
 - Implemented as a UI toggle, enabled by default.
-- Currently displays mock gas station data grouped by the same four-hour route stops used for meal
-  recommendations.
+- Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
+  recommendations when public Overpass data is available.
 
 **REQ-4.6.2: Gas Station Information**  
 When displayed, gas stations shall show location, route distance, estimated prices, fuel types, and
 hours where available.
 
 Prototype status:
-- Mock gas station names and fuel details are displayed with approximate distance from each shared
-  four-hour food/gas stop.
 - Gas station options also appear immediately after food options in the meal recommendations panel.
-- Each mock gas station card includes a clickable Google Maps place link, a Street View action with
-  a picture-style icon, and a Google Maps driving-directions link to an approximate station
-  coordinate near the shared stop area.
+- Fuel suggestions are loaded from OpenStreetMap fuel station data via Overpass around the same
+  four-hour stop areas used for food recommendations.
+- Fuel options are grouped under the paired food stop and sorted near the displayed food options
+  when restaurant data is available.
+- Each fuel station card includes a clickable Google Maps place link, a Street View action with a
+  picture-style icon, and a Google Maps driving-directions link to the station coordinates.
 
 ## 5. User Interface Requirements
 
@@ -332,7 +333,7 @@ Prototype status:
 | Weather alerts | National Weather Service, OpenWeatherMap, WeatherAPI | National Weather Service active alerts | Implemented for US routes |
 | Weather forecast | OpenWeatherMap, WeatherAPI, similar | None | Future work |
 | Traffic incidents | Google Maps, HERE, TomTom | None | Future work |
-| Gas stations | Places API, OSM, similar | Mock data | Future work |
+| Gas stations | Places API, OSM, similar | Overpass / OpenStreetMap | Implemented |
 | Public transit | GTFS and transit APIs | None | Future work |
 | Flights | Aviationstack or similar | None | Future work |
 
@@ -422,6 +423,8 @@ Production note:
       displayed restaurant and gas station cards.
 - [x] Application displays active inclement-weather alert overlays for US routes.
 - [x] Application displays gas stations when toggle is enabled.
+- [x] Application coordinates gas station suggestions with the same four-hour stop areas used for
+      food choices instead of repeating a static station list.
 - [x] Application calculates and displays up to three route-specific live car route geometries,
       using calculated via-points to fill missing alternatives when the public OSRM service returns
       too few direct alternatives.
@@ -492,6 +495,8 @@ Production note:
   area, with cache-busting asset versions for the published frontend.
 - Moved map actions onto each displayed restaurant and gas station card, with clickable Google Maps
   place links and place-specific Street View/directions targets.
+- Replaced the repeating mock fuel list with Overpass/OpenStreetMap fuel station lookup near the
+  same four-hour food-stop areas and sorted gas options near displayed food choices when available.
 
 ## 11. Glossary
 
@@ -527,3 +532,4 @@ Production note:
 | 2.3 | June 25, 2026 | Added via-point route fallback generation and static asset cache busting |
 | 2.4 | June 25, 2026 | Added Street View and driving-directions links for shared food/gas stops |
 | 2.5 | June 25, 2026 | Moved map and Street View actions to displayed food and gas place cards |
+| 2.6 | June 25, 2026 | Replaced repeating mock fuel options with coordinated live OSM fuel suggestions |
