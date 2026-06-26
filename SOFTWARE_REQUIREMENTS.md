@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.8
+**Version:** 1.9
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -165,8 +165,9 @@ The application shall automatically detect standard meal-time windows during tra
 Prototype status:
 - Implemented for car routes using selected departure date, departure time, selected timezone, and
   OSRM step durations.
-- The app estimates where the car will be at 7:00 AM, 12:00 PM, and 7:00 PM local trip time when
-  those times fall within the active driving window.
+- The app estimates where the car will be at 7:00 AM, 12:00 PM, and 7:00 PM in the selected trip
+  timezone when those times fall within the active driving window.
+- Long trips can produce repeated breakfast, lunch, or dinner stops across multiple trip days.
 
 **REQ-4.3.2: Dining Prompts**  
 When meal times are detected, the application shall offer restaurant recommendations and cuisine
@@ -179,8 +180,8 @@ Prototype status:
   route.
 - Breakfast, lunch, and dinner recommendations are tied to the estimated route location at 7:00 AM,
   12:00 PM, and 7:00 PM respectively.
-- For short local trips with no breakfast, lunch, or dinner window during travel, the prototype
-  falls back to route-adjacent nearby food suggestions.
+- Trips with no breakfast, lunch, or dinner window during travel show a meal-window message instead
+  of generic nearby food suggestions.
 
 **REQ-4.3.3: Restaurant Display**  
 When restaurants are enabled, the application shall display restaurants along the route.
@@ -189,10 +190,9 @@ Prototype status:
 - Implemented using OpenStreetMap restaurant data via Overpass.
 - The app samples the calculated driving route at the approximate locations/times where breakfast,
   lunch, or dinner windows occur.
-- Short local trips fall back to route sample points so nearby restaurants can still appear.
-- Restaurants are listed in the meal panel with meal type, approximate pass-through time, nearby
-  road segment, cuisine/address details where available, and approximate distance from the
-  meal-window area.
+- Restaurants are grouped by detected breakfast, lunch, and dinner stops in the meal panel with
+  approximate pass-through time, nearby road segment, cuisine/address details where available, and
+  approximate distance from the meal-window area.
 - Restaurants are displayed as map markers.
 - Ratings are not available from OSM and remain future work through another provider.
 
@@ -462,6 +462,8 @@ Production note:
 - Created this dedicated requirements file and made it the ongoing place for SRD updates.
 - Tuned the trip input form for mobile-first field sizing and alignment while preserving desktop and
   tablet layouts.
+- Refined meal recommendations to focus on detected breakfast, lunch, and dinner route positions,
+  group restaurant options by meal stop, and avoid generic nearby-food fallback suggestions.
 
 ## 11. Glossary
 
@@ -490,3 +492,4 @@ Production note:
 | 1.6 | June 25, 2026 | Added guided pages, cascading dates, and fixed-time meal targeting status |
 | 1.7 | June 25, 2026 | Added alternate route redraw and landing action rail status |
 | 1.8 | June 25, 2026 | Added mobile-first form field sizing and alignment status |
+| 1.9 | June 25, 2026 | Refined breakfast, lunch, and dinner route-position restaurant recommendations |
