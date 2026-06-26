@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.1
+**Version:** 2.2
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -300,6 +300,8 @@ Prototype status:
 - Route entry is shown only after the user selects the route info page.
 - Main hero title is `Route-Aware Trip Planning`.
 - Footer branding displays `Cajun Travel Services`.
+- Location text entry preserves the previous route while the user is typing and waits for field
+  change/blur before recalculating route previews.
 - Final itinerary view remains future work.
 
 ### 5.4 Accessibility
@@ -470,6 +472,8 @@ Production note:
   display each stop's approximate mileage from the origin.
 - Added one-hour food-stop time to trip timing, renamed food groups to `Suggested food stop`, paired
   gas options under each food stop, and alternated food/gas group colors.
+- Improved location entry resilience so partial typing does not clear the current route and
+  geocoding failures keep the previous successful route visible.
 
 ## 11. Glossary
 
@@ -501,3 +505,4 @@ Production note:
 | 1.9 | June 25, 2026 | Refined breakfast, lunch, and dinner route-position restaurant recommendations |
 | 2.0 | June 25, 2026 | Added four-hour shared food and gas stops with mileage from origin |
 | 2.1 | June 25, 2026 | Added one-hour food-stop timing, paired gas listings, and alternating stop colors |
+| 2.2 | June 25, 2026 | Improved route-entry resilience during location edits and geocoding failures |
