@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.2
+**Version:** 2.3
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -60,7 +60,7 @@ personalized options for dining and fuel stops.
 | Date Format | US or international standards | US Format | UI implemented |
 | Time Zone | IANA timezone | Central Time | UI implemented |
 | Theme | Light or Dark mode | Light | Implemented with localStorage |
-| Gas Station Display | Toggle on/off | Off | UI implemented with mock data |
+| Gas Station Display | Toggle on/off | On | UI implemented with mock data |
 | Restaurant Display | Toggle on/off | On | Implemented with live OSM restaurant data |
 
 ## 4. Functional Requirements
@@ -137,7 +137,9 @@ Prototype status:
 - Selecting an available alternate route redraws the map, directions, weather alerts, and meal
   recommendations for that route.
 - Changes to trip inputs and user-selectable criteria automatically recalculate the preview.
-- Scenic and balanced alternatives currently use mock supplemental route data.
+- Scenic and balanced alternatives use route-specific OSRM geometry when the public routing service
+  provides alternatives; if too few alternatives are returned, the prototype requests additional
+  route geometries through calculated via-points near the route.
 
 **REQ-4.2.2: Route Options For Train Travel**  
 Display available train routes, schedules, stations, and nearby attractions.
@@ -413,7 +415,9 @@ Production note:
       pass-through times, one-hour food-stop timing, and miles from origin.
 - [x] Application displays active inclement-weather alert overlays for US routes.
 - [x] Application displays gas stations when toggle is enabled.
-- [ ] Application calculates three fully distinct live car routes.
+- [x] Application calculates and displays up to three route-specific live car route geometries,
+      using calculated via-points to fill missing alternatives when the public OSRM service returns
+      too few direct alternatives.
 - [ ] Application displays weather forecasts for travel dates and locations.
 - [ ] Application identifies and displays real-time traffic incidents.
 - [ ] Application supports live train, bus, and airplane modes.
@@ -474,6 +478,9 @@ Production note:
   gas options under each food stop, and alternated food/gas group colors.
 - Improved location entry resilience so partial typing does not clear the current route and
   geocoding failures keep the previous successful route visible.
+- Added route-refresh recovery so each route card is backed by its own route geometry where possible,
+  alternate selections redraw the map from route-specific data, and browser cache-busting asset
+  versions force the latest frontend script and styles to load.
 
 ## 11. Glossary
 
@@ -506,3 +513,4 @@ Production note:
 | 2.0 | June 25, 2026 | Added four-hour shared food and gas stops with mileage from origin |
 | 2.1 | June 25, 2026 | Added one-hour food-stop timing, paired gas listings, and alternating stop colors |
 | 2.2 | June 25, 2026 | Improved route-entry resilience during location edits and geocoding failures |
+| 2.3 | June 25, 2026 | Added via-point route fallback generation and static asset cache busting |

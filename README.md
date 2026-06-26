@@ -10,6 +10,12 @@ python3 -m http.server 5173
 
 Then open `http://localhost:5173`.
 
+If another process is already using or wedging port `5173`, use another static-server port:
+
+```bash
+python3 -m http.server 5174
+```
+
 ## Included
 
 - Trip input form with date logic validation

@@ -47,6 +47,8 @@ const MEAL_SEARCH_RADIUS_METERS = 8000;
 const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
 const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const MAX_RESTAURANTS_PER_STOP = 3;
+const ROUTE_OPTION_COUNT = routes.length;
+const MAX_SYNTHETIC_ROUTE_ATTEMPTS = 12;
 
 const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
 const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
@@ -357,13 +359,17 @@ function setupAddressAutocomplete(inputSelector, datalistSelector) {
   );
 }
 
-async function fetchDrivingRoute(origin, destination) {
-  const coordinates = `${origin.lon},${origin.lat};${destination.lon},${destination.lat}`;
+function buildRouteCoordinates(points) {
+  return points.map((point) => `${point.lon},${point.lat}`).join(";");
+}
+
+async function fetchOsrmRoutes(points, alternatives = "3") {
+  const coordinates = buildRouteCoordinates(points);
   const url = new URL(`https://router.project-osrm.org/route/v1/driving/${coordinates}`);
   url.searchParams.set("overview", "full");
   url.searchParams.set("geometries", "geojson");
   url.searchParams.set("steps", "true");
-  url.searchParams.set("alternatives", "3");
+  url.searchParams.set("alternatives", alternatives);
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -376,6 +382,82 @@ async function fetchDrivingRoute(origin, destination) {
   }
 
   return data.routes;
+}
+
+function getRouteCoordinateAtFraction(route, fraction) {
+  const coordinates = route.geometry?.coordinates || [];
+  if (!coordinates.length) return null;
+
+  const index = Math.max(0, Math.min(coordinates.length - 1, Math.round((coordinates.length - 1) * fraction)));
+  const [lon, lat] = coordinates[index];
+  return { lon, lat };
+}
+
+function getRouteSignature(route) {
+  return [0.12, 0.3, 0.5, 0.7, 0.88]
+    .map((fraction) => {
+      const point = getRouteCoordinateAtFraction(route, fraction);
+      return point ? `${point.lon.toFixed(3)},${point.lat.toFixed(3)}` : "";
+    })
+    .join("|");
+}
+
+function addUniqueRoutes(routeOptions, candidates) {
+  const signatures = new Set(routeOptions.map(getRouteSignature));
+
+  candidates.forEach((route) => {
+    const signature = getRouteSignature(route);
+    if (!signature || signatures.has(signature)) return;
+
+    signatures.add(signature);
+    routeOptions.push(route);
+  });
+}
+
+function getSyntheticWaypoint(route, attemptIndex) {
+  const routeFractions = [0.4, 0.6, 0.5, 0.3, 0.7];
+  const fraction = routeFractions[Math.floor(attemptIndex / 2) % routeFractions.length];
+  const offsetScale = 1 + Math.floor(attemptIndex / (routeFractions.length * 2)) * 0.75;
+  const start = getRouteCoordinateAtFraction(route, 0.25);
+  const mid = getRouteCoordinateAtFraction(route, fraction);
+  const end = getRouteCoordinateAtFraction(route, 0.75);
+  if (!start || !mid || !end) return null;
+
+  const deltaLon = end.lon - start.lon;
+  const deltaLat = end.lat - start.lat;
+  const length = Math.hypot(deltaLon, deltaLat) || 1;
+  const routeMiles = (route.distance || 0) / 1609.344;
+  const offsetDegrees = Math.min(0.22, Math.max(0.006, routeMiles / 2400) * offsetScale);
+  const direction = attemptIndex % 2 === 0 ? 1 : -1;
+
+  return {
+    lon: mid.lon + (-deltaLat / length) * offsetDegrees * direction,
+    lat: mid.lat + (deltaLon / length) * offsetDegrees * direction,
+  };
+}
+
+async function fetchDrivingRoute(origin, destination) {
+  const routeOptions = [];
+  const directRoutes = await fetchOsrmRoutes([origin, destination], "3");
+  addUniqueRoutes(routeOptions, directRoutes);
+
+  for (
+    let attemptIndex = 0;
+    routeOptions.length < ROUTE_OPTION_COUNT && attemptIndex < MAX_SYNTHETIC_ROUTE_ATTEMPTS;
+    attemptIndex += 1
+  ) {
+    const waypoint = getSyntheticWaypoint(routeOptions[0], attemptIndex);
+    if (!waypoint) break;
+
+    try {
+      const waypointRoutes = await fetchOsrmRoutes([origin, waypoint, destination], "false");
+      addUniqueRoutes(routeOptions, waypointRoutes);
+    } catch {
+      // Try another side of the route before giving up on additional route choices.
+    }
+  }
+
+  return routeOptions.slice(0, ROUTE_OPTION_COUNT);
 }
 
 function getStepInstruction(step) {
