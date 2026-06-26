@@ -48,6 +48,8 @@ const mealWindows = [
   { name: "Lunch", targetHour: 12 },
   { name: "Dinner", targetHour: 19 },
 ];
+const MEAL_SEARCH_RADIUS_METERS = 8000;
+const MAX_RESTAURANTS_PER_MEAL = 3;
 
 const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
 const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
@@ -412,16 +414,20 @@ function buildRestaurantQuery(points) {
     .map(
       (point) => {
         const [lon, lat] = Array.isArray(point) ? point : [point.lon, point.lat];
-        return `node["amenity"="restaurant"](around:8000,${lat},${lon});way["amenity"="restaurant"](around:8000,${lat},${lon});relation["amenity"="restaurant"](around:8000,${lat},${lon});`;
+        return `node["amenity"="restaurant"](around:${MEAL_SEARCH_RADIUS_METERS},${lat},${lon});way["amenity"="restaurant"](around:${MEAL_SEARCH_RADIUS_METERS},${lat},${lon});relation["amenity"="restaurant"](around:${MEAL_SEARCH_RADIUS_METERS},${lat},${lon});`;
       },
     )
     .join("");
 
-  return `[out:json][timeout:25];(${searches});out center 24;`;
+  return `[out:json][timeout:25];(${searches});out center 80;`;
+}
+
+function getSelectedTimezone() {
+  return document.querySelector("#timezone").value;
 }
 
 function getHourOfDay(date) {
-  const timezone = document.querySelector("#timezone").value;
+  const timezone = getSelectedTimezone();
   const parts = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "numeric",
@@ -434,9 +440,43 @@ function getHourOfDay(date) {
   return hour + minute / 60;
 }
 
-function getMatchingMealWindow(date) {
-  const hour = getHourOfDay(date);
-  return mealWindows.find((meal) => Math.abs(hour - meal.targetHour) <= 0.5);
+function getZonedDateParts(date, timezone = getSelectedTimezone()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+    timeZone: timezone,
+  }).formatToParts(date);
+  const valueFor = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
+
+  return {
+    year: valueFor("year"),
+    month: valueFor("month"),
+    day: valueFor("day"),
+    hour: valueFor("hour"),
+    minute: valueFor("minute"),
+    second: valueFor("second"),
+  };
+}
+
+function getTimeZoneOffsetMs(date, timezone = getSelectedTimezone()) {
+  const parts = getZonedDateParts(date, timezone);
+  const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return zonedAsUtc - date.getTime();
+}
+
+function getDateInTimezone(year, month, day, hour, timezone = getSelectedTimezone()) {
+  const utcGuess = Date.UTC(year, month - 1, day, hour, 0, 0);
+  const firstPass = new Date(utcGuess - getTimeZoneOffsetMs(new Date(utcGuess), timezone));
+  return new Date(utcGuess - getTimeZoneOffsetMs(firstPass, timezone));
+}
+
+function getMealPointId(meal, passTime) {
+  return `${meal}-${passTime.toISOString()}`;
 }
 
 function getDistanceMiles(a, b) {
@@ -483,52 +523,38 @@ function getRouteCoordinateAtElapsed(route, elapsedTargetSeconds) {
   return lon != null && lat != null ? { lon, lat, road: "route area" } : null;
 }
 
-function getNextMealTime(departureAt, targetHour) {
-  const target = new Date(departureAt);
-  target.setHours(targetHour, 0, 0, 0);
-
-  while (target < departureAt) {
-    target.setDate(target.getDate() + 1);
-  }
-
-  return target;
-}
-
 function getMealWindowPoints(route, departureAt) {
   const arrivalAt = new Date(departureAt.getTime() + (route.duration || 0) * 1000);
+  const timezone = getSelectedTimezone();
+  const departureParts = getZonedDateParts(departureAt, timezone);
+  const tripDays = Math.max(1, Math.ceil((arrivalAt.getTime() - departureAt.getTime()) / 86400000) + 1);
+  const mealPoints = [];
 
-  return mealWindows
-    .map((meal) => {
-      const passTime = getNextMealTime(departureAt, meal.targetHour);
-      if (passTime > arrivalAt) return null;
+  for (let dayOffset = 0; dayOffset <= tripDays; dayOffset += 1) {
+    const calendarDate = new Date(Date.UTC(departureParts.year, departureParts.month - 1, departureParts.day + dayOffset));
+    const year = calendarDate.getUTCFullYear();
+    const month = calendarDate.getUTCMonth() + 1;
+    const day = calendarDate.getUTCDate();
+
+    mealWindows.forEach((meal) => {
+      const passTime = getDateInTimezone(year, month, day, meal.targetHour, timezone);
+      if (passTime < departureAt || passTime > arrivalAt) return;
 
       const elapsedSeconds = (passTime.getTime() - departureAt.getTime()) / 1000;
       const location = getRouteCoordinateAtElapsed(route, elapsedSeconds);
-      if (!location) return null;
+      if (!location) return;
 
-      return {
+      mealPoints.push({
+        id: getMealPointId(meal.name, passTime),
         meal: meal.name,
         mealMidpoint: meal.targetHour,
         passTime,
         ...location,
-      };
-    })
-    .filter(Boolean);
-}
+      });
+    });
+  }
 
-function getNearbyFoodPoints(route, departureAt) {
-  return getRestaurantSearchPoints(route).map((point) => {
-    const [lon, lat] = Array.isArray(point) ? point : [point.lon, point.lat];
-
-    return {
-      meal: "Nearby food",
-      mealMidpoint: getHourOfDay(departureAt),
-      passTime: departureAt,
-      lon,
-      lat,
-      road: "route area",
-    };
-  });
+  return mealPoints.sort((a, b) => a.passTime - b.passTime);
 }
 
 function getDepartureDateTime(formData) {
@@ -562,6 +588,7 @@ function normalizeRestaurant(element, mealPoints = []) {
     id: `${element.type}-${element.id}`,
     name: tags.name,
     cuisine,
+    mealPointId: mealPoint?.id,
     meal: mealPoint?.meal || "Meal stop",
     passTime: mealPoint?.passTime,
     road: mealPoint?.road || "route area",
@@ -574,15 +601,14 @@ function normalizeRestaurant(element, mealPoints = []) {
 
 async function fetchRestaurantsAlongRoute(route, departureAt) {
   const mealPoints = getMealWindowPoints(route, departureAt);
-  const lookupPoints = mealPoints.length ? mealPoints : getNearbyFoodPoints(route, departureAt);
-  activeMealWindows = lookupPoints;
+  activeMealWindows = mealPoints;
 
-  if (!lookupPoints.length) {
+  if (!mealPoints.length) {
     return [];
   }
 
   const body = new URLSearchParams({
-    data: buildRestaurantQuery(lookupPoints),
+    data: buildRestaurantQuery(mealPoints),
   });
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
@@ -617,7 +643,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
   const restaurantsById = new Map();
 
   data.elements
-    .map((element) => normalizeRestaurant(element, lookupPoints))
+    .map((element) => normalizeRestaurant(element, mealPoints))
     .filter(Boolean)
     .forEach((restaurant) => {
       restaurantsById.set(restaurant.id, restaurant);
@@ -625,12 +651,12 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
 
   return [...restaurantsById.values()]
     .sort((a, b) => {
-      const mealOrder = mealWindows.findIndex((meal) => meal.name === a.meal) - mealWindows.findIndex((meal) => meal.name === b.meal);
-      return mealOrder || a.distanceMiles - b.distanceMiles;
+      const timeOrder = (a.passTime?.getTime() || 0) - (b.passTime?.getTime() || 0);
+      return timeOrder || a.distanceMiles - b.distanceMiles;
     })
     .filter((restaurant, index, restaurants) => {
-      const mealCount = restaurants.slice(0, index).filter((item) => item.meal === restaurant.meal).length;
-      return mealCount < 3;
+      const mealCount = restaurants.slice(0, index).filter((item) => item.mealPointId === restaurant.mealPointId).length;
+      return mealCount < MAX_RESTAURANTS_PER_MEAL;
     });
 }
 
@@ -920,22 +946,40 @@ function renderRestaurants() {
     return;
   }
 
-  if (!activeRestaurants.length) {
-    restaurantList.innerHTML = activeMealWindows.length
-      ? `<div class="empty-state">No named OpenStreetMap restaurants found near the detected meal-window route areas.</div>`
-      : `<div class="empty-state">No breakfast, lunch, or dinner window falls within this route based on the selected departure time.</div>`;
+  if (!activeMealWindows.length) {
+    restaurantList.innerHTML = `<div class="empty-state">No breakfast, lunch, or dinner window falls within this route based on the selected departure time.</div>`;
     return;
   }
 
-  restaurantList.innerHTML = activeRestaurants
+  restaurantList.innerHTML = activeMealWindows
     .map(
-      (stop) => `
-        <div class="stop-card">
-          <strong>${escapeHtml(stop.name)}</strong>
-          <span>${escapeHtml(stop.meal)} around ${escapeHtml(formatMealTime(stop.passTime))} near ${escapeHtml(stop.road)}</span>
-          <span>${escapeHtml(stop.details)}${Number.isFinite(stop.distanceMiles) ? ` · ${stop.distanceMiles.toFixed(1)} mi from meal-window area` : ""}</span>
-        </div>
-      `,
+      (mealPoint) => {
+        const options = activeRestaurants.filter((restaurant) => restaurant.mealPointId === mealPoint.id);
+        const optionMarkup = options.length
+          ? options
+              .map(
+                (stop) => `
+                  <div class="stop-card">
+                    <strong>${escapeHtml(stop.name)}</strong>
+                    <span>${escapeHtml(stop.details)}${Number.isFinite(stop.distanceMiles) ? ` · ${stop.distanceMiles.toFixed(1)} mi from ${mealPoint.meal.toLowerCase()} area` : ""}</span>
+                  </div>
+                `,
+              )
+              .join("")
+          : `<div class="empty-state">No named restaurants found near this ${escapeHtml(mealPoint.meal.toLowerCase())} stop.</div>`;
+
+        return `
+          <section class="meal-stop-card" aria-label="${escapeHtml(mealPoint.meal)} food options">
+            <div class="meal-stop-heading">
+              <strong>${escapeHtml(mealPoint.meal)} around ${escapeHtml(formatMealTime(mealPoint.passTime))}</strong>
+              <span>Estimated near ${escapeHtml(mealPoint.road)}</span>
+            </div>
+            <div class="meal-stop-options">
+              ${optionMarkup}
+            </div>
+          </section>
+        `;
+      },
     )
     .join("");
   drawRestaurantMarkers(activeRestaurants);
