@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 1.9
+**Version:** 2.0
 **Date:** June 25, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -159,15 +159,16 @@ Prototype status:
 
 ### 4.3 Dining Recommendations
 
-**REQ-4.3.1: Meal Time Detection**  
-The application shall automatically detect standard meal-time windows during travel.
+**REQ-4.3.1: Meal Stop Detection**  
+The application shall automatically plan recurring meal stops during travel.
 
 Prototype status:
 - Implemented for car routes using selected departure date, departure time, selected timezone, and
   OSRM step durations.
-- The app estimates where the car will be at 7:00 AM, 12:00 PM, and 7:00 PM in the selected trip
-  timezone when those times fall within the active driving window.
-- Long trips can produce repeated breakfast, lunch, or dinner stops across multiple trip days.
+- The app estimates where the car will be every four hours of driving time and classifies each stop
+  as breakfast, lunch, or dinner based on the selected trip timezone.
+- Each planned food stop includes approximate pass-through time, driving time into the route, nearby
+  road segment, and miles from the origin.
 
 **REQ-4.3.2: Dining Prompts**  
 When meal times are detected, the application shall offer restaurant recommendations and cuisine
@@ -176,23 +177,19 @@ selection.
 Prototype status:
 - Restaurant toggle is implemented.
 - Cuisine selector remains future work.
-- Recommendations are automatically loaded when a meal window intersects the calculated driving
-  route.
-- Breakfast, lunch, and dinner recommendations are tied to the estimated route location at 7:00 AM,
-  12:00 PM, and 7:00 PM respectively.
-- Trips with no breakfast, lunch, or dinner window during travel show a meal-window message instead
-  of generic nearby food suggestions.
+- Recommendations are automatically loaded when a four-hour food stop falls within the calculated
+  driving route.
+- Trips shorter than four hours show a route-stop message instead of generic nearby food suggestions.
 
 **REQ-4.3.3: Restaurant Display**  
 When restaurants are enabled, the application shall display restaurants along the route.
 
 Prototype status:
 - Implemented using OpenStreetMap restaurant data via Overpass.
-- The app samples the calculated driving route at the approximate locations/times where breakfast,
-  lunch, or dinner windows occur.
-- Restaurants are grouped by detected breakfast, lunch, and dinner stops in the meal panel with
-  approximate pass-through time, nearby road segment, cuisine/address details where available, and
-  approximate distance from the meal-window area.
+- The app samples the calculated driving route at four-hour driving intervals.
+- Restaurants are grouped by detected four-hour breakfast, lunch, or dinner stops in the meal panel
+  with approximate pass-through time, driving time, miles from origin, nearby road segment,
+  cuisine/address details where available, and approximate distance from the stop area.
 - Restaurants are displayed as map markers.
 - Ratings are not available from OSM and remain future work through another provider.
 
@@ -249,15 +246,17 @@ Prototype status:
 The application shall provide a user-selectable button to toggle gas station display on/off.
 
 Prototype status:
-- Implemented as a UI toggle.
-- Currently displays mock gas station data.
+- Implemented as a UI toggle, enabled by default.
+- Currently displays mock gas station data grouped by the same four-hour route stops used for meal
+  recommendations.
 
 **REQ-4.6.2: Gas Station Information**  
 When displayed, gas stations shall show location, route distance, estimated prices, fuel types, and
 hours where available.
 
 Prototype status:
-- Mock data only.
+- Mock gas station names and fuel details are displayed with approximate distance from each shared
+  four-hour food/gas stop.
 
 ## 5. User Interface Requirements
 
@@ -403,10 +402,9 @@ Production note:
 - [x] Application collapses route choices to the selected route with a link to restore all options.
 - [x] Application redraws route-specific map and detail data when an alternate route is selected.
 - [x] Application displays actual restaurants along the route.
-- [x] Application targets meal recommendations by route location at breakfast, lunch, and dinner
-      clock times.
-- [x] Application ties restaurant recommendations to detected meal windows and approximate
-      pass-through times.
+- [x] Application targets meal recommendations every four hours of driving time.
+- [x] Application ties restaurant and gas recommendations to shared route stops with approximate
+      pass-through times and miles from origin.
 - [x] Application displays active inclement-weather alert overlays for US routes.
 - [x] Application displays gas stations when toggle is enabled.
 - [ ] Application calculates three fully distinct live car routes.
@@ -464,6 +462,8 @@ Production note:
   tablet layouts.
 - Refined meal recommendations to focus on detected breakfast, lunch, and dinner route positions,
   group restaurant options by meal stop, and avoid generic nearby-food fallback suggestions.
+- Reworked trip-stop planning to calculate shared food and gas stops every four hours of driving and
+  display each stop's approximate mileage from the origin.
 
 ## 11. Glossary
 
@@ -493,3 +493,4 @@ Production note:
 | 1.7 | June 25, 2026 | Added alternate route redraw and landing action rail status |
 | 1.8 | June 25, 2026 | Added mobile-first form field sizing and alignment status |
 | 1.9 | June 25, 2026 | Refined breakfast, lunch, and dinner route-position restaurant recommendations |
+| 2.0 | June 25, 2026 | Added four-hour shared food and gas stops with mileage from origin |
