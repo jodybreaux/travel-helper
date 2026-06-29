@@ -2,8 +2,8 @@
 
 ## Travel Helper Application
 
-**Version:** 2.6
-**Date:** June 25, 2026  
+**Version:** 2.8
+**Date:** June 29, 2026  
 **Status:** Draft, prototype in progress  
 
 ## 1. Executive Summary
@@ -132,10 +132,13 @@ Prototype status:
 - The fastest route card is labeled `Quickest Route`.
 - Fastest route uses live OSRM distance and duration.
 - Route geometry is displayed on a live Leaflet/OpenStreetMap map.
-- Turn-by-turn driving directions are displayed in a directions panel.
+- Turn-by-turn driving directions are available in a directions panel behind a collapsed-by-default
+  toggle so long instruction lists do not dominate the route view.
 - Selecting a route hides the other two route cards and shows a link to restore all route options.
 - Selecting an available alternate route redraws the map, directions, weather alerts, and meal
   recommendations for that route.
+- The live map dynamically fits the selected route into view with an overview zoom cap so short trips
+  do not open at an overly detailed street-level scale; users can still zoom in or out manually.
 - Changes to trip inputs and user-selectable criteria automatically recalculate the preview.
 - Scenic and balanced alternatives use route-specific OSRM geometry when the public routing service
   provides alternatives; if too few alternatives are returned, the prototype requests additional
@@ -412,9 +415,12 @@ Production note:
 - [x] Application calculates and displays a live car route.
 - [x] Application displays route geometry on a map.
 - [x] Application displays turn-by-turn driving directions.
+- [x] Application defaults detailed driving turns to hidden and lets the user toggle them open or
+      closed.
 - [x] Application recalculates route details when user-selectable trip criteria change.
 - [x] Application collapses route choices to the selected route with a link to restore all options.
 - [x] Application redraws route-specific map and detail data when an alternate route is selected.
+- [x] Application frames the full selected route on the map without over-zooming short trips.
 - [x] Application displays actual restaurants along the route.
 - [x] Application targets meal recommendations every four hours of driving time.
 - [x] Application ties restaurant and gas recommendations to shared route stops with approximate
@@ -498,6 +504,13 @@ Production note:
 - Replaced the repeating mock fuel list with Overpass/OpenStreetMap fuel station lookup near the
   same four-hour food-stop areas and sorted gas options near displayed food choices when available.
 
+### June 29, 2026
+
+- Renamed the route options section heading to `Trip Options`.
+- Capped the automatic live route map overview zoom while continuing to fit the full selected trip in
+  view and leaving manual zoom controls available.
+- Added a collapsed-by-default toggle for detailed turn-by-turn driving instructions.
+
 ## 11. Glossary
 
 - **API:** Application Programming Interface.
@@ -533,3 +546,5 @@ Production note:
 | 2.4 | June 25, 2026 | Added Street View and driving-directions links for shared food/gas stops |
 | 2.5 | June 25, 2026 | Moved map and Street View actions to displayed food and gas place cards |
 | 2.6 | June 25, 2026 | Replaced repeating mock fuel options with coordinated live OSM fuel suggestions |
+| 2.7 | June 29, 2026 | Added capped route overview zoom and updated route options heading copy |
+| 2.8 | June 29, 2026 | Defaulted detailed turn-by-turn directions to a collapsed toggle |

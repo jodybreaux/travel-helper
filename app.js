@@ -36,6 +36,8 @@ const MAX_RESTAURANTS_PER_STOP = 3;
 const MAX_FUEL_STATIONS_PER_STOP = 3;
 const ROUTE_OPTION_COUNT = routes.length;
 const MAX_SYNTHETIC_ROUTE_ATTEMPTS = 12;
+const ROUTE_OVERVIEW_MAX_ZOOM = 11;
+const ROUTE_OVERVIEW_PADDING = [48, 48];
 
 const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
 const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
@@ -55,6 +57,7 @@ const restaurantList = document.querySelector("#restaurantList");
 const gasPanel = document.querySelector("#gasPanel");
 const mapStatus = document.querySelector("#mapStatus");
 const routeSummary = document.querySelector("#routeSummary");
+const directionsToggle = document.querySelector("#directionsToggle");
 const directionsList = document.querySelector("#directionsList");
 const weatherList = document.querySelector("#weatherList");
 
@@ -455,14 +458,28 @@ function getStepInstruction(step) {
   return `${action || "Continue"}${road}`.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function renderDirections(route) {
+function setDirectionsExpanded(isExpanded) {
+  directionsToggle.hidden = directionsList.children.length === 0;
+  directionsToggle.textContent = isExpanded ? "Hide detailed turns" : "Show detailed turns";
+  directionsToggle.setAttribute("aria-expanded", String(isExpanded));
+  directionsList.hidden = !isExpanded;
+}
+
+function clearDirections() {
   directionsList.innerHTML = "";
+  setDirectionsExpanded(false);
+}
+
+function renderDirections(route) {
+  clearDirections();
 
   route.legs.flatMap((leg) => leg.steps).forEach((step) => {
     const item = document.createElement("li");
     item.textContent = `${getStepInstruction(step)} · ${formatDistance(step.distance)} · ${formatDuration(step.duration)}`;
     directionsList.appendChild(item);
   });
+
+  setDirectionsExpanded(false);
 }
 
 function getRestaurantSearchPoints(route) {
@@ -900,7 +917,10 @@ function drawRoute(route, origin, destination) {
   originMarker = L.marker([origin.lat, origin.lon]).addTo(map).bindPopup("Origin");
   destinationMarker = L.marker([destination.lat, destination.lon]).addTo(map).bindPopup("Destination");
 
-  map.fitBounds(routeLayer.getBounds(), { padding: [36, 36] });
+  map.fitBounds(routeLayer.getBounds(), {
+    padding: ROUTE_OVERVIEW_PADDING,
+    maxZoom: ROUTE_OVERVIEW_MAX_ZOOM,
+  });
 }
 
 function updateRouteCardStats(routeOptions = activeRouteOptions) {
@@ -978,7 +998,7 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     if (requestId !== previewRequestId) return;
 
     routeSummary.textContent = "Calculating route...";
-    directionsList.innerHTML = "";
+    clearDirections();
     activeRestaurants = [];
     activeFuelStations = [];
     activeTripStops = [];
@@ -1371,6 +1391,10 @@ pageButtons.forEach((button) => {
   button.addEventListener("click", () => {
     showPage(button.dataset.pageTarget);
   });
+});
+
+directionsToggle.addEventListener("click", () => {
+  setDirectionsExpanded(directionsList.hidden);
 });
 
 tripForm.addEventListener("submit", async (event) => {

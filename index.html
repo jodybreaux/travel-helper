@@ -8,7 +8,7 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-    <link rel="stylesheet" href="styles.css?v=2.6-coordinated-fuel" />
+    <link rel="stylesheet" href="styles.css?v=2.8-directions-toggle" />
   </head>
   <body>
     <header class="site-header">
@@ -164,7 +164,7 @@
       <section class="routes-section app-page" id="routes" data-page="routes" aria-labelledby="routesTitle">
         <div class="section-heading">
           <p class="eyebrow">Recommended options</p>
-          <h2 id="routesTitle">Three ways to make the trip.</h2>
+          <h2 id="routesTitle">Trip Options</h2>
         </div>
 
         <div class="route-grid" id="routeGrid" aria-live="polite"></div>
@@ -190,7 +190,17 @@
             <div class="route-summary" id="routeSummary">
               Enter a trip to calculate driving directions.
             </div>
-            <ol class="directions-list" id="directionsList"></ol>
+            <button
+              class="directions-toggle"
+              id="directionsToggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="directionsList"
+              hidden
+            >
+              Show detailed turns
+            </button>
+            <ol class="directions-list" id="directionsList" hidden></ol>
           </aside>
         </div>
       </section>
@@ -242,6 +252,6 @@
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js?v=2.6-coordinated-fuel"></script>
+    <script src="app.js?v=2.8-directions-toggle"></script>
   </body>
 </html>
