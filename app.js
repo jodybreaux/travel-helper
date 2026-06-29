@@ -1342,6 +1342,7 @@ function renderRestaurants() {
                 (stop) => `
                   <div class="stop-card">
                     <strong>${renderPlaceLink(stop)}</strong>
+                    ${renderStreetViewThumbnail(stop, "restaurant")}
                     <span>${escapeHtml(stop.details)}${Number.isFinite(stop.distanceMiles) ? ` · ${escapeHtml(getRecommendationDistanceText(stop))}` : ""}</span>
                     ${renderPlaceMapActions(stop, "restaurant")}
                   </div>
@@ -1354,6 +1355,7 @@ function renderRestaurants() {
             (station) => `
               <div class="stop-card">
                 <strong>${renderPlaceLink(station)}</strong>
+                ${renderStreetViewThumbnail(station, "gas station")}
                 <span>${escapeHtml(station.details)}</span>
                 ${renderPlaceMapActions(station, "gas station")}
               </div>
@@ -1389,6 +1391,15 @@ function getStreetViewUrl(point) {
   return url.toString();
 }
 
+function getStreetViewEmbedUrl(point) {
+  const url = new URL("https://www.google.com/maps");
+  url.searchParams.set("layer", "c");
+  url.searchParams.set("cbll", `${point.lat},${point.lon}`);
+  url.searchParams.set("cbp", "11,0,0,0,0");
+  url.searchParams.set("output", "svembed");
+  return url.toString();
+}
+
 function getPlaceMapUrl(place) {
   const url = new URL("https://www.google.com/maps/search/");
   const query = [place.name, place.lat, place.lon].filter((value) => value != null).join(" ");
@@ -1410,6 +1421,24 @@ function renderPlaceLink(place) {
   const placeName = escapeHtml(place.name);
 
   return `<a class="place-name-link" href="${placeUrl}" target="_blank" rel="noopener" aria-label="Open ${placeName} in Google Maps">${placeName}</a>`;
+}
+
+function renderStreetViewThumbnail(place, placeType) {
+  const streetViewUrl = escapeHtml(getStreetViewUrl(place));
+  const embedUrl = escapeHtml(getStreetViewEmbedUrl(place));
+  const placeLabel = escapeHtml(`${place.name} ${placeType}`);
+
+  return `
+    <div class="street-view-thumbnail" aria-label="Street View thumbnail for ${placeLabel}">
+      <iframe
+        title="Street View thumbnail for ${placeLabel}"
+        src="${embedUrl}"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+      <a href="${streetViewUrl}" target="_blank" rel="noopener" aria-label="Open full Street View for ${placeLabel}">Open Street View</a>
+    </div>
+  `;
 }
 
 function renderPlaceMapActions(place, placeType) {
@@ -1530,6 +1559,7 @@ function renderGasStations() {
             (station) => `
               <div class="stop-card">
                 <strong>${renderPlaceLink(station)}</strong>
+                ${renderStreetViewThumbnail(station, "gas station")}
                 <span>${escapeHtml(station.details)}</span>
                 ${renderPlaceMapActions(station, "gas station")}
               </div>

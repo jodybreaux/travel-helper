@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.20  
+**Version:** 2.21  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.20 |
+| Current version | 2.21 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -232,8 +232,9 @@ Prototype status:
   and displays the next available options found within 2 miles of a forward route point.
 - Each food stop group also lists paired gas options immediately after the food options, and
   alternating group colors distinguish consecutive food/gas stops.
-- Each restaurant card includes a clickable Google Maps place link, a Street View action with a
-  picture-style icon, and a Google Maps driving-directions link to the restaurant coordinates.
+- Each restaurant card includes a clickable Google Maps place link, a lazy-loaded Street View
+  thumbnail, a Street View action, and a Google Maps driving-directions link to the restaurant
+  coordinates.
 - Restaurants are displayed as map markers.
 - Ratings are not available from OSM and remain future work through another provider.
 
@@ -316,8 +317,9 @@ Prototype status:
   midpoint.
 - Fuel options are grouped under the paired food stop and sorted near the displayed food options
   when restaurant data is available.
-- Each fuel station card includes a clickable Google Maps place link, a Street View action with a
-  picture-style icon, and a Google Maps driving-directions link to the station coordinates.
+- Each fuel station card includes a clickable Google Maps place link, a lazy-loaded Street View
+  thumbnail, a Street View action, and a Google Maps driving-directions link to the station
+  coordinates.
 
 ## 5. User Interface Requirements
 
@@ -618,6 +620,8 @@ Production note:
 - Added forward fallback searches so empty planned stops can use the next available food or fuel
   options in the direction of travel.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.16`.
+- Added lazy-loaded Street View thumbnails to food and fuel stop cards.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.17`.
 
 ## 11. Glossary
 
@@ -668,3 +672,4 @@ Production note:
 | 2.18 | June 29, 2026 | Revised meal and gas lookups to use planned stop waypoints only |
 | 2.19 | June 29, 2026 | Added Overpass timeout handling and unnamed fuel station fallback |
 | 2.20 | June 29, 2026 | Added forward fallback lookup for planned stops without nearby food or fuel |
+| 2.21 | June 29, 2026 | Added Street View thumbnails to food and fuel stop cards |
