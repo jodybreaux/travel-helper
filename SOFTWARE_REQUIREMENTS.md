@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.16  
+**Version:** 2.17  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.16 |
+| Current version | 2.17 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -36,8 +36,8 @@ weather forecasts, dining options, gas stations, traffic conditions, and travel 
 |---|---|
 | Primary travel mode | Car travel implemented with live routing |
 | Route display | Leaflet/OpenStreetMap map with OSRM route geometry and turn-by-turn directions |
-| Restaurants | Live OpenStreetMap/Overpass recommendations within 2 miles of route stop areas |
-| Gas stations | Live OpenStreetMap/Overpass recommendations within 2 miles of route stop areas |
+| Meal options | Live OpenStreetMap/Overpass restaurant, cafe, and fast-food recommendations within 2 miles of the route |
+| Gas stations | Live OpenStreetMap/Overpass recommendations within 2 miles of the route |
 | Weather | National Weather Service active-alert overlays for United States routes |
 | User preferences | Theme, date format, timezone, gas toggle, and restaurant toggle UI in place |
 | Remaining major gaps | Weather forecasts, real-time traffic incidents, public transit, flights, and full accessibility audit |
@@ -206,8 +206,7 @@ cuisine selection.
 Prototype status:
 - Restaurant toggle is implemented.
 - Cuisine selector remains future work.
-- Recommendations are automatically loaded when a four-hour food stop falls within the calculated
-  driving route.
+- Recommendations are automatically loaded from sampled points along the calculated driving route.
 - Trips shorter than four hours search near the route midpoint and display up to five food options
   when public OSM data is available.
 
@@ -215,13 +214,16 @@ Prototype status:
 When restaurants are enabled, the application shall display restaurants along the route.
 
 Prototype status:
-- Implemented using OpenStreetMap restaurant data via Overpass.
-- The app samples the calculated driving route at four-hour driving intervals.
-- For trips shorter than four hours, the app samples the route midpoint for food recommendations.
+- Implemented using OpenStreetMap restaurant, cafe, and fast-food data via Overpass.
+- The app samples the calculated driving route corridor and searches within 2 miles of sampled route
+  points.
+- For trips shorter than four hours, the app still groups recommendations under a short-trip
+  recommendation stop while searching the route corridor rather than only the route midpoint.
 - Restaurants are grouped by detected four-hour suggested food stops in the meal panel with
   approximate pass-through time, driving time including prior food stops, miles from origin, nearby
   road segment, cuisine/address details where available, and approximate distance from the stop area.
-- Restaurant search is limited to named food options within 2 miles of the active route stop area.
+- Meal search is limited to named restaurants, cafes, and fast-food options within 2 miles of the
+  active route corridor.
 - Each food stop group also lists paired gas options immediately after the food options, and
   alternating group colors distinguish consecutive food/gas stops.
 - Each restaurant card includes a clickable Google Maps place link, a Street View action with a
@@ -285,7 +287,7 @@ Prototype status:
 - Implemented as a UI toggle, enabled by default.
 - Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
   recommendations when public Overpass data is available.
-- Fuel station search is limited to named fuel options within 2 miles of the active route stop area.
+- Fuel station search is limited to named fuel options within 2 miles of the active route corridor.
 - Trips shorter than four hours search near the route midpoint and display up to five gas options
   when public OSM data is available.
 
@@ -468,10 +470,10 @@ Production note:
 - [x] Application clears prior route results when the user creates a different route from the route
       information screen.
 - [x] Application frames the full selected route on the map without over-zooming short trips.
-- [x] Application displays actual restaurants along the route.
+- [x] Application displays actual restaurants, cafes, and fast-food options along the route.
 - [x] Application targets meal recommendations every four hours of driving time.
 - [x] Application limits meal and gas recommendation searches to within 2 miles of the active route
-      stop area.
+      corridor.
 - [x] Application displays up to five food and five gas recommendations for trips under four hours
       when available from public OSM data.
 - [x] Application ties restaurant and gas recommendations to shared route stops with approximate
@@ -583,6 +585,10 @@ Production note:
 - Updated frontend asset cache-busting and footer stamp to app version `v2.12`.
 - Moved GitHub Pages publishing to a clean `docs/` static-site folder to avoid legacy Pages build
   failures from repository support files.
+- Updated meal and gas lookups to search sampled points along the route corridor instead of only the
+  active midpoint or four-hour stop point.
+- Expanded meal lookup to include OpenStreetMap restaurants, cafes, and fast-food locations.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.13`.
 
 ## 11. Glossary
 
@@ -629,3 +635,4 @@ Production note:
 | 2.14 | June 29, 2026 | Removed generated document exports from published static site branch |
 | 2.15 | June 29, 2026 | Fixed stale route results when creating a different route |
 | 2.16 | June 29, 2026 | Moved GitHub Pages publishing source to `docs/` |
+| 2.17 | June 29, 2026 | Updated meal and gas lookups to sample the 2-mile route corridor |

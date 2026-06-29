@@ -30,6 +30,8 @@ const routes = [
 
 const ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS = 3219;
 const ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES = 2;
+const ROUTE_RECOMMENDATION_SAMPLE_INTERVAL_MILES = 2;
+const ROUTE_RECOMMENDATION_MAX_SEARCH_POINTS = 30;
 const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
 const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const MAX_RESTAURANTS_PER_STOP = 3;
@@ -469,15 +471,40 @@ function renderDirections(route) {
   setDirectionsExpanded(false);
 }
 
-function getRestaurantSearchPoints(route) {
-  const coordinates = route.geometry.coordinates;
-  if (coordinates.length <= 2) return coordinates;
+function getRouteRecommendationSearchPoints(route, tripStops = []) {
+  const coordinates = route.geometry.coordinates || [];
+  if (!coordinates.length) return tripStops;
 
-  const sampleIndexes = [0.2, 0.4, 0.6, 0.8].map((fraction) =>
-    Math.min(coordinates.length - 1, Math.floor(coordinates.length * fraction)),
+  const routeDistanceMiles = Math.max((route.distance || 0) / 1609.344, ROUTE_RECOMMENDATION_SAMPLE_INTERVAL_MILES);
+  const sampleIntervalMiles = Math.max(
+    ROUTE_RECOMMENDATION_SAMPLE_INTERVAL_MILES,
+    routeDistanceMiles / Math.max(1, ROUTE_RECOMMENDATION_MAX_SEARCH_POINTS - tripStops.length),
   );
+  const searchPoints = [...tripStops];
+  const seen = new Set(searchPoints.map((point) => `${point.lat.toFixed(4)},${point.lon.toFixed(4)}`));
+  let distanceMiles = 0;
+  let nextSampleMiles = 0;
 
-  return sampleIndexes.map((index) => coordinates[index]);
+  const addPoint = (point) => {
+    const key = `${point.lat.toFixed(4)},${point.lon.toFixed(4)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    searchPoints.push(point);
+  };
+
+  coordinates.forEach(([lon, lat], index) => {
+    if (index > 0) {
+      const [previousLon, previousLat] = coordinates[index - 1];
+      distanceMiles += getDistanceMiles({ lat: previousLat, lon: previousLon }, { lat, lon });
+    }
+
+    if (index === 0 || distanceMiles >= nextSampleMiles || index === coordinates.length - 1) {
+      addPoint({ lat, lon });
+      nextSampleMiles = distanceMiles + sampleIntervalMiles;
+    }
+  });
+
+  return searchPoints.slice(0, ROUTE_RECOMMENDATION_MAX_SEARCH_POINTS);
 }
 
 function buildRestaurantQuery(points) {
@@ -485,7 +512,7 @@ function buildRestaurantQuery(points) {
     .map(
       (point) => {
         const [lon, lat] = Array.isArray(point) ? point : [point.lon, point.lat];
-        return `node["amenity"="restaurant"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});way["amenity"="restaurant"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});relation["amenity"="restaurant"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});`;
+        return `node["amenity"~"^(restaurant|fast_food|cafe)$"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});way["amenity"~"^(restaurant|fast_food|cafe)$"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});relation["amenity"~"^(restaurant|fast_food|cafe)$"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});`;
       },
     )
     .join("");
@@ -721,7 +748,10 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
     return [];
   }
 
-  const data = await fetchOverpassData(buildRestaurantQuery(tripStops), "Restaurant lookup is unavailable right now.");
+  const data = await fetchOverpassData(
+    buildRestaurantQuery(getRouteRecommendationSearchPoints(route, tripStops)),
+    "Restaurant lookup is unavailable right now.",
+  );
 
   const restaurantsById = new Map();
 
@@ -789,7 +819,10 @@ async function fetchFuelStationsAlongRoute(route, departureAt) {
     return [];
   }
 
-  const data = await fetchOverpassData(buildFuelQuery(tripStops), "Fuel station lookup is unavailable right now.");
+  const data = await fetchOverpassData(
+    buildFuelQuery(getRouteRecommendationSearchPoints(route, tripStops)),
+    "Fuel station lookup is unavailable right now.",
+  );
   const stationsById = new Map();
 
   data.elements
