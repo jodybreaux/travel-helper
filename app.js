@@ -84,6 +84,9 @@ let previewRequestId = 0;
 let recommendationLoading = {
   restaurants: false,
   fuel: false,
+  restaurantStopIds: new Set(),
+  fuelStopIds: new Set(),
+  townStopIds: new Set(),
 };
 
 function setTheme(theme) {
@@ -784,6 +787,63 @@ function getDepartureDateTime(formData) {
   return new Date(`${date}T${time}`);
 }
 
+function getNearbyTownName(address = {}) {
+  return address.city
+    || address.town
+    || address.village
+    || address.hamlet
+    || address.suburb
+    || address.municipality
+    || address.county
+    || "";
+}
+
+async function fetchNearbyTownName(point) {
+  const url = new URL("https://nominatim.openstreetmap.org/reverse");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("lat", point.lat);
+  url.searchParams.set("lon", point.lon);
+  url.searchParams.set("zoom", "10");
+  url.searchParams.set("addressdetails", "1");
+
+  const response = await fetch(url);
+  if (!response.ok) return "";
+
+  const data = await response.json();
+  return getNearbyTownName(data.address || {});
+}
+
+function mergeRecommendations(existingItems, newItems) {
+  const itemsById = new Map();
+  existingItems.forEach((item) => {
+    itemsById.set(item.id, item);
+  });
+  newItems.forEach((item) => {
+    itemsById.set(item.id, item);
+  });
+  return [...itemsById.values()];
+}
+
+function sortRestaurants(restaurants) {
+  return preferDirectRecommendations(restaurants)
+    .sort((a, b) => {
+      const timeOrder = (a.passTime?.getTime() || 0) - (b.passTime?.getTime() || 0);
+      return timeOrder || a.distanceAheadMiles - b.distanceAheadMiles || a.distanceMiles - b.distanceMiles;
+    })
+    .filter((restaurant, index, sortedRestaurants) => {
+      const stopCount = sortedRestaurants.slice(0, index).filter((item) => item.tripStopId === restaurant.tripStopId).length;
+      return stopCount < getFoodRecommendationLimit(restaurant);
+    });
+}
+
+function sortFuelStations(stations) {
+  return preferDirectRecommendations(stations)
+    .sort((a, b) => {
+      const timeOrder = (a.passTime?.getTime() || 0) - (b.passTime?.getTime() || 0);
+      return timeOrder || a.distanceAheadMiles - b.distanceAheadMiles || a.distanceMiles - b.distanceMiles;
+    });
+}
+
 function normalizeRestaurant(element, tripStops = [], searchPoints = tripStops) {
   const tags = element.tags || {};
   const lat = element.lat ?? element.center?.lat;
@@ -824,43 +884,40 @@ function normalizeRestaurant(element, tripStops = [], searchPoints = tripStops) 
   };
 }
 
-async function fetchRestaurantsAlongRoute(route, departureAt) {
-  const tripStops = activeTripStops.length ? activeTripStops : getTripRecommendationStops(route, departureAt);
-  activeTripStops = tripStops;
-
-  if (!tripStops.length) {
-    return [];
-  }
-
+async function fetchRestaurantsForStop(route, tripStops, tripStop, onUpdate) {
   const restaurantsById = new Map();
-  const directSearchPoints = tripStops.map((tripStop) => ({
+  const publish = (isComplete = false) => {
+    onUpdate?.(sortRestaurants([...restaurantsById.values()]), tripStop.id, isComplete);
+  };
+  const directSearchPoint = {
     ...tripStop,
     anchorTripStopId: tripStop.id,
     isForwardFallback: false,
     distanceAheadMiles: 0,
-  }));
+  };
 
   try {
-    const data = await fetchOverpassData(buildRestaurantQuery(directSearchPoints), "Restaurant lookup is unavailable right now.");
+    const data = await fetchOverpassData(buildRestaurantQuery([directSearchPoint]), "Restaurant lookup is unavailable right now.");
     data.elements
-      .map((element) => normalizeRestaurant(element, tripStops, directSearchPoints))
+      .map((element) => normalizeRestaurant(element, tripStops, [directSearchPoint]))
       .filter((restaurant) => restaurant && restaurant.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES)
       .forEach((restaurant) => {
         restaurantsById.set(restaurant.id, restaurant);
       });
+    if (restaurantsById.size) {
+      publish(true);
+      return sortRestaurants([...restaurantsById.values()]);
+    }
+    publish(false);
   } catch {
-    // Continue to the forward fallback query where possible.
+    // Continue to forward fallback points before showing no restaurant options.
   }
 
-  const missingStopIds = getMissingRecommendationStopIds(tripStops, [...restaurantsById.values()]);
+  const fallbackSearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
+    .filter((point) => point.isForwardFallback && point.anchorTripStopId === tripStop.id);
 
-  if (missingStopIds.size) {
-    const fallbackSearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
-      .filter((point) => point.isForwardFallback && missingStopIds.has(point.anchorTripStopId));
-
-    try {
-      if (!fallbackSearchPoints.length) return preferDirectRecommendations([...restaurantsById.values()]);
-
+  try {
+    if (fallbackSearchPoints.length) {
       const data = await fetchOverpassData(buildRestaurantQuery(fallbackSearchPoints), "Restaurant lookup is unavailable right now.");
       preferDirectRecommendations(
         data.elements
@@ -869,45 +926,59 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
       ).forEach((restaurant) => {
         restaurantsById.set(restaurant.id, restaurant);
       });
-    } catch {
-      // Leave missing stops as clear no-result states.
-    }
-  }
-
-  const retryStopIds = getMissingRecommendationStopIds(tripStops, [...restaurantsById.values()]);
-  for (const tripStopId of retryStopIds) {
-    const retrySearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
-      .filter((point) => point.isForwardFallback && point.anchorTripStopId === tripStopId)
-      .slice(0, FORWARD_RECOMMENDATION_RETRY_POINTS);
-
-    for (const searchPoint of retrySearchPoints) {
-      try {
-        const data = await fetchOverpassData(buildRestaurantQuery([searchPoint]), "Restaurant lookup is unavailable right now.");
-        const matches = data.elements
-          .map((element) => normalizeRestaurant(element, tripStops, [searchPoint]))
-          .filter((restaurant) => restaurant && restaurant.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES);
-
-        if (matches.length) {
-          matches.forEach((restaurant) => {
-            restaurantsById.set(restaurant.id, restaurant);
-          });
-          break;
-        }
-      } catch {
-        // Continue to the next point ahead; public endpoints can fail intermittently.
+      if (restaurantsById.size) {
+        publish(true);
+        return sortRestaurants([...restaurantsById.values()]);
       }
+      publish(false);
+    }
+  } catch {
+    // Continue to per-point retries; public endpoints can fail intermittently.
+  }
+
+  for (const searchPoint of fallbackSearchPoints.slice(0, FORWARD_RECOMMENDATION_RETRY_POINTS)) {
+    try {
+      const data = await fetchOverpassData(buildRestaurantQuery([searchPoint]), "Restaurant lookup is unavailable right now.");
+      const matches = data.elements
+        .map((element) => normalizeRestaurant(element, tripStops, [searchPoint]))
+        .filter((restaurant) => restaurant && restaurant.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES);
+
+      if (matches.length) {
+        matches.forEach((restaurant) => {
+          restaurantsById.set(restaurant.id, restaurant);
+        });
+        break;
+      }
+    } catch {
+      // Continue to the next point ahead.
     }
   }
 
-  return preferDirectRecommendations([...restaurantsById.values()])
-    .sort((a, b) => {
-      const timeOrder = (a.passTime?.getTime() || 0) - (b.passTime?.getTime() || 0);
-      return timeOrder || a.distanceAheadMiles - b.distanceAheadMiles || a.distanceMiles - b.distanceMiles;
-    })
-    .filter((restaurant, index, restaurants) => {
-      const stopCount = restaurants.slice(0, index).filter((item) => item.tripStopId === restaurant.tripStopId).length;
-      return stopCount < getFoodRecommendationLimit(restaurant);
-    });
+  publish(true);
+  return sortRestaurants([...restaurantsById.values()]);
+}
+
+async function fetchRestaurantsAlongRoute(route, departureAt, onUpdate) {
+  const tripStops = activeTripStops.length ? activeTripStops : getTripRecommendationStops(route, departureAt);
+  activeTripStops = tripStops;
+
+  if (!tripStops.length) {
+    return [];
+  }
+
+  const restaurantsById = new Map();
+  await Promise.all(
+    tripStops.map(async (tripStop) => {
+      const stopRestaurants = await fetchRestaurantsForStop(route, tripStops, tripStop, (items, stopId, isComplete) => {
+        onUpdate?.(items, stopId, isComplete);
+      });
+      stopRestaurants.forEach((restaurant) => {
+        restaurantsById.set(restaurant.id, restaurant);
+      });
+    }),
+  );
+
+  return sortRestaurants([...restaurantsById.values()]);
 }
 
 function normalizeFuelStation(element, tripStops = [], searchPoints = tripStops) {
@@ -955,43 +1026,40 @@ function normalizeFuelStation(element, tripStops = [], searchPoints = tripStops)
   };
 }
 
-async function fetchFuelStationsAlongRoute(route, departureAt) {
-  const tripStops = activeTripStops.length ? activeTripStops : getTripRecommendationStops(route, departureAt);
-  activeTripStops = tripStops;
-
-  if (!tripStops.length) {
-    return [];
-  }
-
+async function fetchFuelStationsForStop(route, tripStops, tripStop, onUpdate) {
   const stationsById = new Map();
-  const directSearchPoints = tripStops.map((tripStop) => ({
+  const publish = (isComplete = false) => {
+    onUpdate?.(sortFuelStations([...stationsById.values()]), tripStop.id, isComplete);
+  };
+  const directSearchPoint = {
     ...tripStop,
     anchorTripStopId: tripStop.id,
     isForwardFallback: false,
     distanceAheadMiles: 0,
-  }));
+  };
 
   try {
-    const data = await fetchOverpassData(buildFuelQuery(directSearchPoints), "Fuel station lookup is unavailable right now.");
+    const data = await fetchOverpassData(buildFuelQuery([directSearchPoint]), "Fuel station lookup is unavailable right now.");
     data.elements
-      .map((element) => normalizeFuelStation(element, tripStops, directSearchPoints))
+      .map((element) => normalizeFuelStation(element, tripStops, [directSearchPoint]))
       .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES)
       .forEach((station) => {
         stationsById.set(station.id, station);
       });
+    if (stationsById.size) {
+      publish(true);
+      return sortFuelStations([...stationsById.values()]);
+    }
+    publish(false);
   } catch {
     // Continue to forward fallback points before showing no fuel options.
   }
 
-  const missingStopIds = getMissingRecommendationStopIds(tripStops, [...stationsById.values()]);
+  const fallbackSearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
+    .filter((point) => point.isForwardFallback && point.anchorTripStopId === tripStop.id);
 
-  if (missingStopIds.size) {
-    const fallbackSearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
-      .filter((point) => point.isForwardFallback && missingStopIds.has(point.anchorTripStopId));
-
-    try {
-      if (!fallbackSearchPoints.length) return preferDirectRecommendations([...stationsById.values()]);
-
+  try {
+    if (fallbackSearchPoints.length) {
       const data = await fetchOverpassData(buildFuelQuery(fallbackSearchPoints), "Fuel station lookup is unavailable right now.");
       preferDirectRecommendations(
         data.elements
@@ -1000,41 +1068,59 @@ async function fetchFuelStationsAlongRoute(route, departureAt) {
       ).forEach((station) => {
         stationsById.set(station.id, station);
       });
-    } catch {
-      // Leave missing stops as clear no-result states.
-    }
-  }
-
-  const retryStopIds = getMissingRecommendationStopIds(tripStops, [...stationsById.values()]);
-  for (const tripStopId of retryStopIds) {
-    const retrySearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
-      .filter((point) => point.isForwardFallback && point.anchorTripStopId === tripStopId)
-      .slice(0, FORWARD_RECOMMENDATION_RETRY_POINTS);
-
-    for (const searchPoint of retrySearchPoints) {
-      try {
-        const data = await fetchOverpassData(buildFuelQuery([searchPoint]), "Fuel station lookup is unavailable right now.");
-        const matches = data.elements
-          .map((element) => normalizeFuelStation(element, tripStops, [searchPoint]))
-          .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES);
-
-        if (matches.length) {
-          matches.forEach((station) => {
-            stationsById.set(station.id, station);
-          });
-          break;
-        }
-      } catch {
-        // Continue to the next point ahead; public endpoints can fail intermittently.
+      if (stationsById.size) {
+        publish(true);
+        return sortFuelStations([...stationsById.values()]);
       }
+      publish(false);
+    }
+  } catch {
+    // Continue to per-point retries; public endpoints can fail intermittently.
+  }
+
+  for (const searchPoint of fallbackSearchPoints.slice(0, FORWARD_RECOMMENDATION_RETRY_POINTS)) {
+    try {
+      const data = await fetchOverpassData(buildFuelQuery([searchPoint]), "Fuel station lookup is unavailable right now.");
+      const matches = data.elements
+        .map((element) => normalizeFuelStation(element, tripStops, [searchPoint]))
+        .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES);
+
+      if (matches.length) {
+        matches.forEach((station) => {
+          stationsById.set(station.id, station);
+        });
+        break;
+      }
+    } catch {
+      // Continue to the next point ahead.
     }
   }
 
-  return preferDirectRecommendations([...stationsById.values()])
-    .sort((a, b) => {
-      const timeOrder = (a.passTime?.getTime() || 0) - (b.passTime?.getTime() || 0);
-      return timeOrder || a.distanceAheadMiles - b.distanceAheadMiles || a.distanceMiles - b.distanceMiles;
-    });
+  publish(true);
+  return sortFuelStations([...stationsById.values()]);
+}
+
+async function fetchFuelStationsAlongRoute(route, departureAt, onUpdate) {
+  const tripStops = activeTripStops.length ? activeTripStops : getTripRecommendationStops(route, departureAt);
+  activeTripStops = tripStops;
+
+  if (!tripStops.length) {
+    return [];
+  }
+
+  const stationsById = new Map();
+  await Promise.all(
+    tripStops.map(async (tripStop) => {
+      const stopStations = await fetchFuelStationsForStop(route, tripStops, tripStop, (items, stopId, isComplete) => {
+        onUpdate?.(items, stopId, isComplete);
+      });
+      stopStations.forEach((station) => {
+        stationsById.set(station.id, station);
+      });
+    }),
+  );
+
+  return sortFuelStations([...stationsById.values()]);
 }
 
 function drawRestaurantMarkers(restaurants) {
@@ -1195,6 +1281,9 @@ function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
   recommendationLoading = {
     restaurants: false,
     fuel: false,
+    restaurantStopIds: new Set(),
+    fuelStopIds: new Set(),
+    townStopIds: new Set(),
   };
 
   if (routeLayer) {
@@ -1221,6 +1310,25 @@ function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
   gasPanel.innerHTML = "Gas recommendations will load after the new route is ready.";
 }
 
+function loadTripStopTownNames(tripStops, requestId) {
+  tripStops.forEach((tripStop) => {
+    fetchNearbyTownName(tripStop)
+      .then((townName) => {
+        if (requestId !== previewRequestId) return;
+        tripStop.nearTown = townName;
+      })
+      .catch(() => {
+        // Town names improve context but should never block recommendations.
+      })
+      .finally(() => {
+        if (requestId !== previewRequestId) return;
+        recommendationLoading.townStopIds.delete(tripStop.id);
+        renderRestaurants();
+        renderGasStations();
+      });
+  });
+}
+
 function displayRouteSelection(index, requestId = previewRequestId) {
   const route = activeRouteOptions[index];
   if (!route || !activeOrigin || !activeDestination) return;
@@ -1239,38 +1347,59 @@ function displayRouteSelection(index, requestId = previewRequestId) {
   recommendationLoading = {
     restaurants: restaurantToggle.checked && activeTripStops.length > 0,
     fuel: gasToggle.checked && activeTripStops.length > 0,
+    restaurantStopIds: new Set(restaurantToggle.checked ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    fuelStopIds: new Set(gasToggle.checked ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    townStopIds: new Set(activeTripStops.map((tripStop) => tripStop.id)),
   };
   drawRestaurantMarkers([]);
   renderRestaurants();
   renderGasStations();
+  loadTripStopTownNames(activeTripStops, requestId);
 
   if (restaurantToggle.checked) {
-    fetchRestaurantsAlongRoute(route, departureAt)
+    fetchRestaurantsAlongRoute(route, departureAt, (restaurants, stopId, isComplete) => {
+      if (requestId !== previewRequestId) return;
+      activeRestaurants = sortRestaurants(mergeRecommendations(activeRestaurants, restaurants));
+      if (isComplete) recommendationLoading.restaurantStopIds.delete(stopId);
+      recommendationLoading.restaurants = recommendationLoading.restaurantStopIds.size > 0;
+      renderRestaurants();
+    })
       .then((restaurants) => {
         if (requestId !== previewRequestId) return;
-        activeRestaurants = restaurants;
+        activeRestaurants = sortRestaurants(mergeRecommendations(activeRestaurants, restaurants));
         recommendationLoading.restaurants = false;
+        recommendationLoading.restaurantStopIds.clear();
         renderRestaurants();
       })
       .catch((restaurantError) => {
         if (requestId !== previewRequestId) return;
         recommendationLoading.restaurants = false;
+        recommendationLoading.restaurantStopIds.clear();
         restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
       });
   }
 
   if (gasToggle.checked) {
-    fetchFuelStationsAlongRoute(route, departureAt)
+    fetchFuelStationsAlongRoute(route, departureAt, (stations, stopId, isComplete) => {
+      if (requestId !== previewRequestId) return;
+      activeFuelStations = sortFuelStations(mergeRecommendations(activeFuelStations, stations));
+      if (isComplete) recommendationLoading.fuelStopIds.delete(stopId);
+      recommendationLoading.fuel = recommendationLoading.fuelStopIds.size > 0;
+      renderGasStations();
+      if (restaurantToggle.checked) renderRestaurants();
+    })
       .then((stations) => {
         if (requestId !== previewRequestId) return;
-        activeFuelStations = stations;
+        activeFuelStations = sortFuelStations(mergeRecommendations(activeFuelStations, stations));
         recommendationLoading.fuel = false;
+        recommendationLoading.fuelStopIds.clear();
         renderGasStations();
         if (restaurantToggle.checked) renderRestaurants();
       })
       .catch((fuelError) => {
         if (requestId !== previewRequestId) return;
         recommendationLoading.fuel = false;
+        recommendationLoading.fuelStopIds.clear();
         gasPanel.className = "empty-state";
         gasPanel.innerHTML = escapeHtml(fuelError.message);
         if (restaurantToggle.checked) renderRestaurants();
@@ -1394,6 +1523,14 @@ function renderRecommendationLoadingState(message) {
   return `<div class="empty-state loading-state" role="status">${escapeHtml(message)}</div>`;
 }
 
+function renderWaitCursor(label) {
+  return `<span class="wait-cursor" role="status" aria-label="${escapeHtml(label)}"></span>`;
+}
+
+function renderStopSectionLabel(label, isLoading) {
+  return `<span class="stop-section-label">${escapeHtml(label)}${isLoading ? renderWaitCursor(`${label} search in progress`) : ""}</span>`;
+}
+
 function renderRestaurants() {
   if (!restaurantToggle.checked) {
     restaurantList.innerHTML = `<div class="empty-state">Restaurant recommendations are off.</div>`;
@@ -1411,6 +1548,8 @@ function renderRestaurants() {
       (tripStop) => {
         const options = activeRestaurants.filter((restaurant) => restaurant.tripStopId === tripStop.id);
         const gasOptions = getGasSuggestionsForStop(tripStop);
+        const isFoodLoading = recommendationLoading.restaurantStopIds.has(tripStop.id);
+        const isGasLoading = recommendationLoading.fuelStopIds.has(tripStop.id);
         const optionMarkup = options.length
           ? options
               .map(
@@ -1424,7 +1563,7 @@ function renderRestaurants() {
                 `,
               )
               .join("")
-          : recommendationLoading.restaurants
+          : isFoodLoading
             ? renderRecommendationLoadingState(`Looking for viable food options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
           : `<div class="empty-state">${tripStop.isShortTrip ? `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`;
         const gasMarkup = gasOptions
@@ -1438,7 +1577,7 @@ function renderRestaurants() {
               </div>
             `,
           )
-          .join("") || (recommendationLoading.fuel
+          .join("") || (isGasLoading
             ? renderRecommendationLoadingState(`Looking for viable gas options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
             : `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this food stop yet.`}</div>`);
 
@@ -1449,9 +1588,9 @@ function renderRestaurants() {
               <span>${escapeHtml(getTripStopTimingText(tripStop))}</span>
             </div>
             <div class="meal-stop-options">
-              <span class="stop-section-label">Food options</span>
+              ${renderStopSectionLabel("Food options", isFoodLoading)}
               ${optionMarkup}
-              <span class="stop-section-label">Gas options</span>
+              ${renderStopSectionLabel("Gas options", isGasLoading)}
               ${gasMarkup}
             </div>
           </section>
@@ -1562,13 +1701,19 @@ function getRecommendationDistanceText(item, directLabel = "stop area") {
 
 function getTripStopTimingText(tripStop) {
   const distanceText = `${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin`;
+  const townText = tripStop.nearTown
+    ? `Near ${tripStop.nearTown}`
+    : recommendationLoading.townStopIds.has(tripStop.id)
+      ? "Locating nearby town"
+      : "";
   const elapsedText = `${formatDuration(tripStop.elapsedWithStopsSeconds)} into the trip`;
+  const timingParts = [distanceText, townText, elapsedText].filter(Boolean);
 
   if (tripStop.isShortTrip) {
-    return `${distanceText} · ${elapsedText} · near ${tripStop.road}`;
+    return `${timingParts.join(" · ")} · near ${tripStop.road}`;
   }
 
-  return `${distanceText} · ${elapsedText}, including prior food stops · near ${tripStop.road}`;
+  return `${distanceText}${townText ? ` · ${townText}` : ""} · ${elapsedText}, including prior food stops · near ${tripStop.road}`;
 }
 
 function getNearestRestaurantDistance(station, tripStop) {
@@ -1633,6 +1778,7 @@ function renderGasStations() {
   gasPanel.innerHTML = activeTripStops
     .map(
       (tripStop) => {
+        const isGasLoading = recommendationLoading.fuelStopIds.has(tripStop.id);
         const stationMarkup = getGasSuggestionsForStop(tripStop)
           .map(
             (station) => `
@@ -1644,14 +1790,14 @@ function renderGasStations() {
               </div>
             `,
           )
-          .join("") || (recommendationLoading.fuel
+          .join("") || (isGasLoading
             ? renderRecommendationLoadingState(`Looking for viable gas options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
             : `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`);
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">
             <div class="meal-stop-heading">
-              <strong>Gas near ${escapeHtml(tripStop.label.toLowerCase())}</strong>
+              <strong>Gas near ${escapeHtml(tripStop.label.toLowerCase())}${isGasLoading ? renderWaitCursor("Gas search in progress") : ""}</strong>
               <span>${escapeHtml(getTripStopTimingText(tripStop))}</span>
             </div>
             <div class="meal-stop-options">
