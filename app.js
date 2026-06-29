@@ -35,6 +35,7 @@ const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const FORWARD_RECOMMENDATION_INTERVAL_SECONDS = 15 * 60;
 const FORWARD_RECOMMENDATION_LOOKAHEAD_SECONDS = 2 * 60 * 60;
 const FORWARD_RECOMMENDATION_RETRY_POINTS = 2;
+const FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES = 50;
 const OVERPASS_REQUEST_TIMEOUT_MS = 18000;
 const MAX_RESTAURANTS_PER_STOP = 3;
 const MAX_FUEL_STATIONS_PER_STOP = 3;
@@ -747,6 +748,57 @@ function getForwardRecommendationSearchPoints(route, tripStops = []) {
   return searchPoints;
 }
 
+function getForwardRecommendationSearchPointsWithinMiles(route, tripStops = [], maxDistanceAheadMiles) {
+  const searchPoints = [];
+
+  tripStops.forEach((tripStop, index) => {
+    const addForwardPoint = (location, elapsedSeconds) => {
+      if (!location) return false;
+
+      const distanceAheadMiles = Math.max(0, location.distanceFromOriginMiles - tripStop.distanceFromOriginMiles);
+      if (distanceAheadMiles > maxDistanceAheadMiles) return false;
+      if (distanceAheadMiles <= 0) return true;
+      if (searchPoints.some((point) => point.anchorTripStopId === tripStop.id && Math.abs((point.distanceAheadMiles || 0) - distanceAheadMiles) < 0.1)) {
+        return true;
+      }
+
+      searchPoints.push({
+        ...location,
+        id: `${tripStop.id}-forward-${elapsedSeconds}`,
+        anchorTripStopId: tripStop.id,
+        isForwardFallback: true,
+        distanceAheadMiles,
+      });
+      return true;
+    };
+
+    searchPoints.push({
+      ...tripStop,
+      anchorTripStopId: tripStop.id,
+      isForwardFallback: false,
+      distanceAheadMiles: 0,
+    });
+
+    const nextStopElapsed = tripStops[index + 1]?.elapsedSeconds ?? route.duration ?? tripStop.elapsedSeconds;
+    const maxElapsed = Math.min(route.duration || nextStopElapsed, nextStopElapsed);
+
+    for (
+      let elapsedSeconds = tripStop.elapsedSeconds + FORWARD_RECOMMENDATION_INTERVAL_SECONDS;
+      elapsedSeconds <= maxElapsed;
+      elapsedSeconds += FORWARD_RECOMMENDATION_INTERVAL_SECONDS
+    ) {
+      const location = getRoutePositionAtElapsed(route, elapsedSeconds);
+      if (!addForwardPoint(location, elapsedSeconds)) break;
+    }
+
+    if (maxElapsed > tripStop.elapsedSeconds) {
+      addForwardPoint(getRoutePositionAtElapsed(route, maxElapsed), maxElapsed);
+    }
+  });
+
+  return searchPoints;
+}
+
 function preferDirectRecommendations(items = []) {
   const preferred = [];
   const groupedByStop = new Map();
@@ -913,7 +965,11 @@ async function fetchRestaurantsForStop(route, tripStops, tripStop, onUpdate) {
     // Continue to forward fallback points before showing no restaurant options.
   }
 
-  const fallbackSearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
+  const fallbackSearchPoints = getForwardRecommendationSearchPointsWithinMiles(
+    route,
+    tripStops,
+    FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES,
+  )
     .filter((point) => point.isForwardFallback && point.anchorTripStopId === tripStop.id);
 
   try {
@@ -936,7 +992,7 @@ async function fetchRestaurantsForStop(route, tripStops, tripStop, onUpdate) {
     // Continue to per-point retries; public endpoints can fail intermittently.
   }
 
-  for (const searchPoint of fallbackSearchPoints.slice(0, FORWARD_RECOMMENDATION_RETRY_POINTS)) {
+  for (const searchPoint of fallbackSearchPoints) {
     try {
       const data = await fetchOverpassData(buildRestaurantQuery([searchPoint]), "Restaurant lookup is unavailable right now.");
       const matches = data.elements
@@ -1426,11 +1482,11 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     activeFuelStations = [];
     activeTripStops = [];
     if (restaurantToggle.checked) {
-      restaurantList.innerHTML = `<div class="empty-state">Checking within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of the route for food recommendations...</div>`;
+      restaurantList.innerHTML = `<div class="empty-state">Checking the route for food recommendations...</div>`;
     }
     if (gasToggle.checked) {
       gasPanel.className = "empty-state";
-      gasPanel.innerHTML = `Checking within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of the route for gas recommendations...`;
+      gasPanel.innerHTML = "Checking the route for gas recommendations...";
     }
     drawRestaurantMarkers([]);
 
@@ -1564,8 +1620,8 @@ function renderRestaurants() {
               )
               .join("")
           : isFoodLoading
-            ? renderRecommendationLoadingState(`Looking for viable food options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
-          : `<div class="empty-state">${tripStop.isShortTrip ? `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`;
+            ? renderRecommendationLoadingState("Looking for viable food options near this stop area.")
+          : `<div class="empty-state">Food options are still being checked up to ${FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES} miles ahead of this stop. Public map data can be slow, so try refreshing if this does not update.</div>`;
         const gasMarkup = gasOptions
           .map(
             (station) => `
@@ -1578,8 +1634,8 @@ function renderRestaurants() {
             `,
           )
           .join("") || (isGasLoading
-            ? renderRecommendationLoadingState(`Looking for viable gas options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
-            : `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this food stop yet.`}</div>`);
+            ? renderRecommendationLoadingState("Looking for viable gas options near this stop area.")
+            : `<div class="empty-state">${tripStop.isShortTrip ? "No named fuel stations found along this route yet." : "No named fuel stations found near this food stop yet."}</div>`);
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} food and gas options">
@@ -1791,8 +1847,8 @@ function renderGasStations() {
             `,
           )
           .join("") || (isGasLoading
-            ? renderRecommendationLoadingState(`Looking for viable gas options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
-            : `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`);
+            ? renderRecommendationLoadingState("Looking for viable gas options near this stop area.")
+            : `<div class="empty-state">${tripStop.isShortTrip ? "No named fuel stations found along this route yet." : "No named fuel stations found near this four-hour stop yet."}</div>`);
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">
