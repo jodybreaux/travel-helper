@@ -30,7 +30,6 @@ const routes = [
 
 const ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS = 3219;
 const ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES = 2;
-const MIN_TRIP_RECOMMENDATION_SECONDS = 2 * 60 * 60;
 const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
 const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const FORWARD_RECOMMENDATION_INTERVAL_SECONDS = 15 * 60;
@@ -490,8 +489,10 @@ function buildRestaurantQuery(points) {
 function buildFuelQuery(points) {
   const searches = points
     .map(
-      (point) =>
-        `nwr["amenity"="fuel"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${point.lat},${point.lon});`,
+      (point) => {
+        const [lon, lat] = Array.isArray(point) ? point : [point.lon, point.lat];
+        return `nwr["amenity"="fuel"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});`;
+      },
     )
     .join("");
 
@@ -503,6 +504,8 @@ async function fetchOverpassData(query, errorMessage) {
     data: query,
   });
   const endpoints = [
+    "https://z.overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
   ];
@@ -632,8 +635,6 @@ function getRoutePositionAtElapsed(route, elapsedTargetSeconds) {
 }
 
 function getTripStopCount(route) {
-  if ((route.duration || 0) <= MIN_TRIP_RECOMMENDATION_SECONDS) return 0;
-
   return Math.floor((route.duration || 0) / TRIP_STOP_INTERVAL_SECONDS);
 }
 
@@ -669,7 +670,7 @@ function getFourHourTripStops(route, departureAt) {
 }
 
 function getShortTripRecommendationStops(route, departureAt) {
-  if ((route.duration || 0) <= MIN_TRIP_RECOMMENDATION_SECONDS || (route.duration || 0) >= TRIP_STOP_INTERVAL_SECONDS) {
+  if ((route.duration || 0) <= 0 || (route.duration || 0) >= TRIP_STOP_INTERVAL_SECONDS) {
     return [];
   }
 
@@ -936,6 +937,10 @@ function normalizeFuelStation(element, tripStops = [], searchPoints = tripStops)
     id: `${element.type}-${element.id}`,
     name,
     tripStopId: tripStop?.id,
+    label: tripStop?.label || "Suggested food stop",
+    passTime: tripStop?.passTime,
+    road: searchPoint?.road || tripStop?.road || "route area",
+    distanceFromOriginMiles: tripStop?.distanceFromOriginMiles,
     distanceMiles: searchPoint?.distanceMiles,
     isForwardFallback: Boolean(searchPoint?.isForwardFallback),
     distanceAheadMiles: searchPoint?.distanceAheadMiles || 0,
@@ -954,18 +959,78 @@ async function fetchFuelStationsAlongRoute(route, departureAt) {
     return [];
   }
 
-  const searchPoints = getForwardRecommendationSearchPoints(route, tripStops);
-  const data = await fetchOverpassData(buildFuelQuery(searchPoints), "Fuel station lookup is unavailable right now.");
   const stationsById = new Map();
+  const directSearchPoints = tripStops.map((tripStop) => ({
+    ...tripStop,
+    anchorTripStopId: tripStop.id,
+    isForwardFallback: false,
+    distanceAheadMiles: 0,
+  }));
 
-  data.elements
-    .map((element) => normalizeFuelStation(element, tripStops, searchPoints))
-    .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES)
-    .forEach((station) => {
-      stationsById.set(station.id, station);
+  try {
+    const data = await fetchOverpassData(buildFuelQuery(directSearchPoints), "Fuel station lookup is unavailable right now.");
+    data.elements
+      .map((element) => normalizeFuelStation(element, tripStops, directSearchPoints))
+      .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES)
+      .forEach((station) => {
+        stationsById.set(station.id, station);
+      });
+  } catch {
+    // Continue to forward fallback points before showing no fuel options.
+  }
+
+  const missingStopIds = getMissingRecommendationStopIds(tripStops, [...stationsById.values()]);
+
+  if (missingStopIds.size) {
+    const fallbackSearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
+      .filter((point) => point.isForwardFallback && missingStopIds.has(point.anchorTripStopId));
+
+    try {
+      if (!fallbackSearchPoints.length) return preferDirectRecommendations([...stationsById.values()]);
+
+      const data = await fetchOverpassData(buildFuelQuery(fallbackSearchPoints), "Fuel station lookup is unavailable right now.");
+      preferDirectRecommendations(
+        data.elements
+          .map((element) => normalizeFuelStation(element, tripStops, fallbackSearchPoints))
+          .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES),
+      ).forEach((station) => {
+        stationsById.set(station.id, station);
+      });
+    } catch {
+      // Leave missing stops as clear no-result states.
+    }
+  }
+
+  const retryStopIds = getMissingRecommendationStopIds(tripStops, [...stationsById.values()]);
+  for (const tripStopId of retryStopIds) {
+    const retrySearchPoints = getForwardRecommendationSearchPoints(route, tripStops)
+      .filter((point) => point.isForwardFallback && point.anchorTripStopId === tripStopId)
+      .slice(0, FORWARD_RECOMMENDATION_RETRY_POINTS);
+
+    for (const searchPoint of retrySearchPoints) {
+      try {
+        const data = await fetchOverpassData(buildFuelQuery([searchPoint]), "Fuel station lookup is unavailable right now.");
+        const matches = data.elements
+          .map((element) => normalizeFuelStation(element, tripStops, [searchPoint]))
+          .filter((station) => station && station.distanceMiles <= ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES);
+
+        if (matches.length) {
+          matches.forEach((station) => {
+            stationsById.set(station.id, station);
+          });
+          break;
+        }
+      } catch {
+        // Continue to the next point ahead; public endpoints can fail intermittently.
+      }
+    }
+  }
+
+  return preferDirectRecommendations([...stationsById.values()])
+    .sort((a, b) => {
+      const timeOrder = (a.passTime?.getTime() || 0) - (b.passTime?.getTime() || 0);
+      return timeOrder || a.distanceAheadMiles - b.distanceAheadMiles || a.distanceMiles - b.distanceMiles;
     });
-
-  return preferDirectRecommendations([...stationsById.values()]);
 }
 
 function drawRestaurantMarkers(restaurants) {
