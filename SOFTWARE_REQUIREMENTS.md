@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.23  
+**Version:** 2.24  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.23 |
+| Current version | 2.24 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -201,7 +201,7 @@ Prototype status:
   segments produce more accurate stop locations.
 - Each planned food stop adds one hour of stop time to later trip timing and route travel estimates.
 - Each planned food stop includes approximate pass-through time, driving time into the trip including
-  prior food stops, nearby road segment, and miles from the origin.
+  prior food stops, nearby town when available, nearby road segment, and miles from the origin.
 
 **REQ-4.3.2: Dining Prompts**  
 When suggested food stops are detected, the application shall offer restaurant recommendations and
@@ -215,6 +215,8 @@ Prototype status:
   the meals and gas pages can show in-progress or completed results when opened.
 - While lookups are in progress, the app displays `Looking for viable food options` and `Looking for
   viable gas options` status messages instead of no-result messages.
+- Food and gas lookup progress is tracked per stop, with wait indicators beside the active Food and
+  Gas sections and partial results rendered as each stop returns.
 - Trips shorter than four hours search near the route midpoint and display up to five food options
   when public OSM data is available.
 
@@ -229,7 +231,8 @@ Prototype status:
   recommendation stop.
 - Restaurants are grouped by detected four-hour suggested food stops in the meal panel with
   approximate pass-through time, driving time including prior food stops, miles from origin, nearby
-  road segment, cuisine/address details where available, and approximate distance from the stop area.
+  town where available, nearby road segment, cuisine/address details where available, and approximate
+  distance from the stop area.
 - Meal search is limited to named restaurants, cafes, and fast-food options within 2 miles of each
   planned route stop.
 - If no meal options are found at a planned stop, the app searches ahead in the direction of travel
@@ -314,6 +317,8 @@ Prototype status:
   public API misses do not leave the whole gas panel empty.
 - While fuel lookups are in progress, the gas panel displays an active viable-options search status
   instead of a no-result message.
+- Fuel station lookup renders partial per-stop results as they arrive instead of waiting for every
+  stop search to finish.
 
 **REQ-4.6.2: Gas Station Information**  
 When displayed, gas stations shall show location, route distance, estimated prices, fuel types, and
@@ -370,8 +375,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.19` and UTC build timestamp
-  `2026-06-29 19:00 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.20` and UTC build timestamp
+  `2026-06-29 19:14 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -507,6 +512,8 @@ Production note:
       pass-through times, one-hour food-stop timing, and miles from origin.
 - [x] Application starts food and gas lookups when route geometry is ready and displays active
       loading status while viable options are being located.
+- [x] Application updates food and gas recommendation groups as individual stop searches return.
+- [x] Application includes nearby town context when available alongside miles from origin.
 - [x] Application provides clickable place links, Street View links, and driving-directions links for
       displayed restaurant and gas station cards.
 - [x] Application displays active inclement-weather alert overlays for US routes.
@@ -639,6 +646,10 @@ Production note:
 - Added explicit viable-options loading states for background food and gas lookups.
 - Reduced desktop Street View thumbnail sizing while keeping mobile thumbnails full width.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.19`.
+- Added nearby-town context to route stop timing lines.
+- Added per-stop wait indicators for active food and gas searches.
+- Updated food and gas recommendation rendering to show per-stop partial results as requests finish.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.20`.
 
 ## 11. Glossary
 
@@ -692,3 +703,4 @@ Production note:
 | 2.21 | June 29, 2026 | Added Street View thumbnails to food and fuel stop cards |
 | 2.22 | June 29, 2026 | Added short-route midpoint Food/Gas recommendations and more resilient Overpass fuel lookup retries |
 | 2.23 | June 29, 2026 | Added visible background Food/Gas loading states and compact desktop thumbnails |
+| 2.24 | June 29, 2026 | Added nearby-town stop context, per-stop wait indicators, and progressive Food/Gas rendering |
