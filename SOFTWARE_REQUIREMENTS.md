@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.19  
+**Version:** 2.20  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.19 |
+| Current version | 2.20 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -228,6 +228,8 @@ Prototype status:
   road segment, cuisine/address details where available, and approximate distance from the stop area.
 - Meal search is limited to named restaurants, cafes, and fast-food options within 2 miles of each
   planned route stop.
+- If no meal options are found at a planned stop, the app searches ahead in the direction of travel
+  and displays the next available options found within 2 miles of a forward route point.
 - Each food stop group also lists paired gas options immediately after the food options, and
   alternating group colors distinguish consecutive food/gas stops.
 - Each restaurant card includes a clickable Google Maps place link, a Street View action with a
@@ -292,12 +294,15 @@ Prototype status:
 - Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
   recommendations when public Overpass data is available.
 - Fuel station search is limited to named fuel options within 2 miles of each planned route stop.
+- If no fuel options are found at a planned stop, the app searches ahead in the direction of travel
+  and displays the next available options found within 2 miles of a forward route point.
 - Trips over two hours but shorter than four hours search near the route midpoint and display up to
   five gas options when public OSM data is available.
 - Meal and fuel Overpass requests run independently with request timeouts so one slow lookup does not
   block the other from rendering.
 - OpenStreetMap fuel stations without a public name, brand, or operator are displayed as `Fuel
   station` instead of being discarded.
+- Forward fallback results show how far ahead of the planned stop they are.
 
 **REQ-4.6.2: Gas Station Information**  
 When displayed, gas stations shall show location, route distance, estimated prices, fuel types, and
@@ -610,6 +615,9 @@ Production note:
 - Updated frontend asset cache-busting and footer stamp to app version `v2.14`.
 - Kept unnamed OSM fuel station records visible with a generic `Fuel station` label.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.15`.
+- Added forward fallback searches so empty planned stops can use the next available food or fuel
+  options in the direction of travel.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.16`.
 
 ## 11. Glossary
 
@@ -659,3 +667,4 @@ Production note:
 | 2.17 | June 29, 2026 | Updated meal and gas lookups to sample the 2-mile route corridor |
 | 2.18 | June 29, 2026 | Revised meal and gas lookups to use planned stop waypoints only |
 | 2.19 | June 29, 2026 | Added Overpass timeout handling and unnamed fuel station fallback |
+| 2.20 | June 29, 2026 | Added forward fallback lookup for planned stops without nearby food or fuel |
