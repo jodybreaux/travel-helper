@@ -32,3 +32,8 @@ python3 -m http.server 5174
 The current prototype uses live map, routing, restaurant, gas station, and weather-alert data plus
 mock supplemental data for traffic and POIs so the product flow can be reviewed before full API
 integration.
+
+## Publish
+
+GitHub Pages serves the static app from the `docs/` folder on `master`. Keep `index.html`,
+`app.js`, and `styles.css` in sync with the copies in `docs/` before publishing.

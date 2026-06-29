@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travel Helper</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="styles.css?v=2.12-stale-route-fix" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="Travel Helper home">
+          <span class="brand-mark">TH</span>
+          <span>Travel Helper</span>
+        </a>
+        <div class="nav-actions">
+          <button class="nav-link" type="button" data-page-target="route-info">Plan a Trip</button>
+          <button class="nav-link" type="button" data-page-target="routes">Routes</button>
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+            <span id="themeLabel">Dark</span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Smart trip planning preview</p>
+          <h1>Route-Aware Trip Planning</h1>
+          <p class="hero-text">
+            Compare route options, plan suggested food and gas stops, preview weather, and keep
+            useful stops close to your path.
+          </p>
+          <div class="hero-actions page-actions" aria-label="Trip planning pages">
+            <button class="button button-primary" type="button" data-page-target="route-info">
+              Enter route info
+            </button>
+            <button class="button button-secondary" type="button" data-page-target="routes">
+              Select routes
+            </button>
+            <button class="button button-secondary" type="button" data-page-target="meals">
+              Meals
+            </button>
+            <button class="button button-secondary" type="button" data-page-target="gas">
+              Gas
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="planner-section app-page" id="planner" data-page="route-info" aria-labelledby="plannerTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Trip inputs</p>
+          <h2 id="plannerTitle">Tell us where and when you are going.</h2>
+          <p>
+            This prototype uses mock route data, but the flow mirrors the planned production
+            experience.
+          </p>
+        </div>
+
+        <form class="planner-card" id="tripForm">
+          <div class="form-grid">
+            <div class="form-columns">
+              <fieldset class="form-column">
+                <legend>Departure information</legend>
+                <label>
+                  Origin city or address
+                  <input
+                    id="origin"
+                    name="origin"
+                    type="text"
+                    placeholder="1105 San Augustine Dr, 78733"
+                    list="originSuggestions"
+                    autocomplete="street-address"
+                    required
+                  />
+                  <datalist id="originSuggestions"></datalist>
+                </label>
+                <label>
+                  Departure from origin
+                  <input id="departDate" name="departDate" type="date" required />
+                </label>
+                <label>
+                  Departure time
+                  <input id="departTime" name="departTime" type="time" value="08:00" required />
+                </label>
+              </fieldset>
+              <fieldset class="form-column">
+                <legend>Destination information</legend>
+                <label>
+                  Final destination
+                  <input
+                    id="destination"
+                    name="destination"
+                    type="text"
+                    placeholder="13601 Golden Wave Loop, 78738"
+                    list="destinationSuggestions"
+                    autocomplete="street-address"
+                    required
+                  />
+                  <datalist id="destinationSuggestions"></datalist>
+                </label>
+                <label>
+                  Leave destination
+                  <input id="returnDate" name="returnDate" type="date" required />
+                </label>
+              </fieldset>
+            </div>
+            <div class="form-secondary-row">
+              <label>
+                Mode of Travel
+                <select id="mode" name="mode">
+                  <option>Car</option>
+                  <option>Train</option>
+                  <option>Bus</option>
+                  <option>Airplane</option>
+                </select>
+              </label>
+              <label>
+                Time zone
+                <select id="timezone" name="timezone">
+                  <option value="America/Chicago">Central Time</option>
+                  <option value="America/New_York">Eastern Time</option>
+                  <option value="America/Denver">Mountain Time</option>
+                  <option value="America/Los_Angeles">Pacific Time</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="preference-row" aria-label="Trip preferences">
+            <label class="check-option">
+              <input id="gasToggle" type="checkbox" checked />
+              Show gas stations
+            </label>
+            <label class="check-option">
+              <input id="restaurantToggle" type="checkbox" checked />
+              Suggest restaurants
+            </label>
+            <label class="preference-select">
+              Date format
+              <select id="dateFormat">
+                <option value="en-US">US</option>
+                <option value="en-GB">International</option>
+                <option value="de-DE">Germany</option>
+                <option value="ja-JP">Japan</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-footer">
+            <p class="form-message" id="formMessage" role="status">
+              Fill out the form to create route recommendations.
+            </p>
+            <button class="button button-primary" type="submit">Create route</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="routes-section app-page" id="routes" data-page="routes" aria-labelledby="routesTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Recommended options</p>
+          <h2 id="routesTitle">Trip Options</h2>
+        </div>
+
+        <div class="route-grid" id="routeGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="map-section app-page" data-page="routes" aria-labelledby="mapTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Driving directions</p>
+          <h2 id="mapTitle">Live route map and turn-by-turn preview.</h2>
+          <p id="mapStatus" role="status">
+            Loading the default driving route.
+          </p>
+        </div>
+
+        <div class="map-layout">
+          <div
+            class="driving-map"
+            id="drivingMap"
+            role="application"
+            aria-label="Interactive driving route map"
+          ></div>
+          <aside class="directions-card" aria-label="Driving directions">
+            <div class="route-summary" id="routeSummary">
+              Enter a trip to calculate driving directions.
+            </div>
+            <button
+              class="directions-toggle"
+              id="directionsToggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="directionsList"
+              hidden
+            >
+              Show detailed turns
+            </button>
+            <ol class="directions-list" id="directionsList" hidden></ol>
+          </aside>
+        </div>
+      </section>
+
+      <section class="details-layout app-page" data-page="routes" aria-label="Weather details">
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">W</span>
+            <div>
+              <h3>Weather Along Route</h3>
+              <p>Active inclement-weather alerts for the mapped route.</p>
+            </div>
+          </div>
+          <ul class="detail-list" id="weatherList">
+            <li>Calculate a car route to load active weather alerts.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="details-layout app-page" data-page="meals" aria-label="Meal recommendations">
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">M</span>
+            <div>
+              <h3>Meal Recommendations</h3>
+              <p>Suggested food stops with paired gas options within 2 miles of the route.</p>
+            </div>
+          </div>
+          <div class="restaurant-list" id="restaurantList"></div>
+        </article>
+      </section>
+
+      <section class="details-layout app-page" data-page="gas" aria-label="Gas recommendations">
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">G</span>
+            <div>
+              <h3>Fuel Stops</h3>
+              <p>Optional gas stations within 2 miles of the route.</p>
+            </div>
+          </div>
+          <div id="gasPanel" class="empty-state">Gas station display is off.</div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Cajun Travel Services · v2.12 · Built 2026-06-29 15:24 UTC</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js?v=2.12-stale-route-fix"></script>
+  </body>
+</html>

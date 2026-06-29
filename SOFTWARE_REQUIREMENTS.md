@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.15  
+**Version:** 2.16  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.15 |
+| Current version | 2.16 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -397,8 +397,9 @@ Prototype status:
 
 ### 7.3 Deployment Configuration
 
-- The static prototype is published through GitHub Pages from the `master` branch root.
-- A root `.nojekyll` file is used so GitHub Pages serves the static prototype directly without
+- The static prototype is published through GitHub Pages from the `docs/` folder on the `master`
+  branch.
+- A `docs/.nojekyll` file is used so GitHub Pages serves the static prototype directly without
   running Jekyll.
 - Generated document exports are not published with the live static site; the source requirements
   document remains in `SOFTWARE_REQUIREMENTS.md`.
@@ -580,6 +581,8 @@ Production note:
 - Fixed stale route results so creating a different route immediately clears the prior route display
   before loading the new results.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.12`.
+- Moved GitHub Pages publishing to a clean `docs/` static-site folder to avoid legacy Pages build
+  failures from repository support files.
 
 ## 11. Glossary
 
@@ -625,3 +628,4 @@ Production note:
 | 2.13 | June 29, 2026 | Added GitHub Pages `.nojekyll` deployment configuration |
 | 2.14 | June 29, 2026 | Removed generated document exports from published static site branch |
 | 2.15 | June 29, 2026 | Fixed stale route results when creating a different route |
+| 2.16 | June 29, 2026 | Moved GitHub Pages publishing source to `docs/` |
