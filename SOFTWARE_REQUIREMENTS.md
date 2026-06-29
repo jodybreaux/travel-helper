@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.13  
+**Version:** 2.14  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.13 |
+| Current version | 2.14 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -396,8 +396,10 @@ Prototype status:
 ### 7.3 Deployment Configuration
 
 - The static prototype is published through GitHub Pages from the `master` branch root.
-- A root `.nojekyll` file is used so GitHub Pages serves the static prototype and document exports
-  directly without running Jekyll over generated artifacts.
+- A root `.nojekyll` file is used so GitHub Pages serves the static prototype directly without
+  running Jekyll.
+- Generated document exports are not published with the live static site; the source requirements
+  document remains in `SOFTWARE_REQUIREMENTS.md`.
 
 ### 7.4 Performance Requirements
 
@@ -568,8 +570,9 @@ Production note:
 - Reorganized the route information form into departure and destination columns with mode of travel
   and timezone controls below.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.11`.
-- Added `.nojekyll` deployment configuration so GitHub Pages serves the static app and generated
-  document exports directly.
+- Added `.nojekyll` deployment configuration so GitHub Pages serves the static app directly.
+- Removed generated document exports from the published branch to keep the GitHub Pages build focused
+  on the static prototype.
 
 ## 11. Glossary
 
@@ -613,3 +616,4 @@ Production note:
 | 2.11 | June 29, 2026 | Added professional document-control formatting and current prototype status snapshot |
 | 2.12 | June 29, 2026 | Added two-mile meal/gas search radius, route creation copy, and two-column route form layout |
 | 2.13 | June 29, 2026 | Added GitHub Pages `.nojekyll` deployment configuration |
+| 2.14 | June 29, 2026 | Removed generated document exports from published static site branch |
