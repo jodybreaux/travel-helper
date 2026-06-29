@@ -81,6 +81,10 @@ let activeDestination;
 let activeDepartureAt;
 let selectedRouteIndex = null;
 let previewRequestId = 0;
+let recommendationLoading = {
+  restaurants: false,
+  fuel: false,
+};
 
 function setTheme(theme) {
   root.dataset.theme = theme;
@@ -1188,6 +1192,10 @@ function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
   activeRestaurants = [];
   activeFuelStations = [];
   activeTripStops = [];
+  recommendationLoading = {
+    restaurants: false,
+    fuel: false,
+  };
 
   if (routeLayer) {
     routeLayer.remove();
@@ -1213,9 +1221,10 @@ function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
   gasPanel.innerHTML = "Gas recommendations will load after the new route is ready.";
 }
 
-async function displayRouteSelection(index, requestId = previewRequestId) {
+function displayRouteSelection(index, requestId = previewRequestId) {
   const route = activeRouteOptions[index];
   if (!route || !activeOrigin || !activeDestination) return;
+  const departureAt = activeDepartureAt || getDepartureDateTime(new FormData(tripForm));
 
   selectedRouteIndex = index;
   renderRoutes(index);
@@ -1226,50 +1235,47 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
 
   activeRestaurants = [];
   activeFuelStations = [];
-  activeTripStops = getTripRecommendationStops(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
+  activeTripStops = getTripRecommendationStops(route, departureAt);
+  recommendationLoading = {
+    restaurants: restaurantToggle.checked && activeTripStops.length > 0,
+    fuel: gasToggle.checked && activeTripStops.length > 0,
+  };
   drawRestaurantMarkers([]);
+  renderRestaurants();
   renderGasStations();
 
   if (restaurantToggle.checked) {
-    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of planned stops...</div>`;
-  } else {
-    renderRestaurants();
+    fetchRestaurantsAlongRoute(route, departureAt)
+      .then((restaurants) => {
+        if (requestId !== previewRequestId) return;
+        activeRestaurants = restaurants;
+        recommendationLoading.restaurants = false;
+        renderRestaurants();
+      })
+      .catch((restaurantError) => {
+        if (requestId !== previewRequestId) return;
+        recommendationLoading.restaurants = false;
+        restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
+      });
   }
 
   if (gasToggle.checked) {
-    gasPanel.className = "empty-state";
-    gasPanel.innerHTML = `Looking for fuel stations within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of planned stops...`;
+    fetchFuelStationsAlongRoute(route, departureAt)
+      .then((stations) => {
+        if (requestId !== previewRequestId) return;
+        activeFuelStations = stations;
+        recommendationLoading.fuel = false;
+        renderGasStations();
+        if (restaurantToggle.checked) renderRestaurants();
+      })
+      .catch((fuelError) => {
+        if (requestId !== previewRequestId) return;
+        recommendationLoading.fuel = false;
+        gasPanel.className = "empty-state";
+        gasPanel.innerHTML = escapeHtml(fuelError.message);
+        if (restaurantToggle.checked) renderRestaurants();
+      });
   }
-
-  await Promise.all([
-    restaurantToggle.checked
-      ? fetchRestaurantsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)))
-          .then((restaurants) => {
-            if (requestId !== previewRequestId) return;
-            activeRestaurants = restaurants;
-            renderRestaurants();
-          })
-          .catch((restaurantError) => {
-            if (requestId !== previewRequestId) return;
-            restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
-          })
-      : Promise.resolve(),
-    gasToggle.checked
-      ? fetchFuelStationsAlongRoute(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)))
-          .then((stations) => {
-            if (requestId !== previewRequestId) return;
-            activeFuelStations = stations;
-            renderGasStations();
-            if (restaurantToggle.checked) renderRestaurants();
-          })
-          .catch((fuelError) => {
-            if (requestId !== previewRequestId) return;
-            gasPanel.className = "empty-state";
-            gasPanel.innerHTML = escapeHtml(fuelError.message);
-            if (restaurantToggle.checked) renderRestaurants();
-          })
-      : Promise.resolve(),
-  ]);
 }
 
 async function loadDrivingDirections(originQuery, destinationQuery, departureAt = getDepartureDateTime(new FormData(tripForm)), requestId = previewRequestId) {
@@ -1306,7 +1312,7 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     updateRouteCardStats(activeRouteOptions);
 
     mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
-    await displayRouteSelection(0, requestId);
+    displayRouteSelection(0, requestId);
   } catch (error) {
     if (requestId !== previewRequestId) return;
     mapStatus.textContent = error.message;
@@ -1384,6 +1390,10 @@ function renderRoutes(selectedIndex = selectedRouteIndex) {
   });
 }
 
+function renderRecommendationLoadingState(message) {
+  return `<div class="empty-state loading-state" role="status">${escapeHtml(message)}</div>`;
+}
+
 function renderRestaurants() {
   if (!restaurantToggle.checked) {
     restaurantList.innerHTML = `<div class="empty-state">Restaurant recommendations are off.</div>`;
@@ -1414,6 +1424,8 @@ function renderRestaurants() {
                 `,
               )
               .join("")
+          : recommendationLoading.restaurants
+            ? renderRecommendationLoadingState(`Looking for viable food options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
           : `<div class="empty-state">${tripStop.isShortTrip ? `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`;
         const gasMarkup = gasOptions
           .map(
@@ -1426,7 +1438,9 @@ function renderRestaurants() {
               </div>
             `,
           )
-          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this food stop yet.`}</div>`;
+          .join("") || (recommendationLoading.fuel
+            ? renderRecommendationLoadingState(`Looking for viable gas options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
+            : `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this food stop yet.`}</div>`);
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} food and gas options">
@@ -1630,7 +1644,9 @@ function renderGasStations() {
               </div>
             `,
           )
-          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`;
+          .join("") || (recommendationLoading.fuel
+            ? renderRecommendationLoadingState(`Looking for viable gas options within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this stop area.`)
+            : `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`);
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">
