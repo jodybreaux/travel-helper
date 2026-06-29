@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Travel Helper Application - Software Requirements Document v2.12</title>
+  <title>Travel Helper Application - Software Requirements Document v2.13</title>
   <style>
     :root { color-scheme: light; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color: #1f2933; line-height: 1.55; margin: 0; background: #f5f7fa; }
@@ -27,13 +27,13 @@
 <main>
 <h1>Travel Helper Application</h1>
 <h2>Software Requirements Document</h2>
-<p><strong>Version:</strong> 2.12 <strong>Date:</strong> June 29, 2026 <strong>Status:</strong> Prototype in progress <strong>Prepared for:</strong> Jody Breaux <strong>Prepared by:</strong> Cajun Travel Services project workspace <strong>Distribution:</strong> jodyjbreaux@gmail.com</p>
+<p><strong>Version:</strong> 2.13 <strong>Date:</strong> June 29, 2026 <strong>Status:</strong> Prototype in progress <strong>Prepared for:</strong> Jody Breaux <strong>Prepared by:</strong> Cajun Travel Services project workspace <strong>Distribution:</strong> jodyjbreaux@gmail.com</p>
 <h2>Document Control</h2>
 <table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>
 <tr><td>Document owner</td><td>Jody Breaux</td></tr>
 <tr><td>Project</td><td>Travel Helper Application</td></tr>
 <tr><td>Document type</td><td>Software Requirements Document</td></tr>
-<tr><td>Current version</td><td>2.12</td></tr>
+<tr><td>Current version</td><td>2.13</td></tr>
 <tr><td>Current status</td><td>Prototype in progress</td></tr>
 <tr><td>Last updated</td><td>June 29, 2026</td></tr>
 <tr><td>Primary implementation artifact</td><td><code>index.html</code></td></tr>
@@ -388,7 +388,13 @@
 <li>Node.js: v26.4.0</li>
 <li>npm: 11.17.0</li>
 </ul>
-<h3>7.3 Performance Requirements</h3>
+<h3>7.3 Deployment Configuration</h3>
+<ul>
+<li>The static prototype is published through GitHub Pages from the <code>master</code> branch root.</li>
+<li>A root <code>.nojekyll</code> file is used so GitHub Pages serves the static prototype and document exports</li>
+</ul>
+<p>directly without running Jekyll over generated artifacts.</p>
+<h3>7.4 Performance Requirements</h3>
 <ul>
 <li>Initial page load target: under 3 seconds.</li>
 <li>Route calculation target: under 5 seconds.</li>
@@ -399,7 +405,7 @@
 <li>Public free APIs may be slower or rate-limited. Production should use backend aggregation,</li>
 </ul>
 <p>caching, and paid or quota-managed providers where needed.</p>
-<h3>7.4 Security Requirements</h3>
+<h3>7.5 Security Requirements</h3>
 <ul>
 <li>API keys shall not be exposed in frontend code.</li>
 <li>HTTPS shall be used for data transmission.</li>
@@ -609,7 +615,9 @@
 <p>and timezone controls below.</p>
 <ul>
 <li>Updated frontend asset cache-busting and footer stamp to app version <code>v2.11</code>.</li>
+<li>Added <code>.nojekyll</code> deployment configuration so GitHub Pages serves the static app and generated</li>
 </ul>
+<p>document exports directly.</p>
 <h2>11. Glossary</h2>
 <ul>
 <li><strong>API:</strong> Application Programming Interface.</li>
@@ -649,6 +657,7 @@
 <tr><td>2.10</td><td>June 29, 2026</td><td>Added footer app version and UTC build timestamp</td></tr>
 <tr><td>2.11</td><td>June 29, 2026</td><td>Added professional document-control formatting and current prototype status snapshot</td></tr>
 <tr><td>2.12</td><td>June 29, 2026</td><td>Added two-mile meal/gas search radius, route creation copy, and two-column route form layout</td></tr>
+<tr><td>2.13</td><td>June 29, 2026</td><td>Added GitHub Pages <code>.nojekyll</code> deployment configuration</td></tr>
 </tbody></table>
 </main>
 </body>

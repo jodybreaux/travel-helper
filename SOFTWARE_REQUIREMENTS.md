@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.12  
+**Version:** 2.13  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.12 |
+| Current version | 2.13 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -393,7 +393,13 @@ Prototype status:
 - Node.js: v26.4.0
 - npm: 11.17.0
 
-### 7.3 Performance Requirements
+### 7.3 Deployment Configuration
+
+- The static prototype is published through GitHub Pages from the `master` branch root.
+- A root `.nojekyll` file is used so GitHub Pages serves the static prototype and document exports
+  directly without running Jekyll over generated artifacts.
+
+### 7.4 Performance Requirements
 
 - Initial page load target: under 3 seconds.
 - Route calculation target: under 5 seconds.
@@ -403,7 +409,7 @@ Prototype note:
 - Public free APIs may be slower or rate-limited. Production should use backend aggregation,
   caching, and paid or quota-managed providers where needed.
 
-### 7.4 Security Requirements
+### 7.5 Security Requirements
 
 - API keys shall not be exposed in frontend code.
 - HTTPS shall be used for data transmission.
@@ -562,6 +568,8 @@ Production note:
 - Reorganized the route information form into departure and destination columns with mode of travel
   and timezone controls below.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.11`.
+- Added `.nojekyll` deployment configuration so GitHub Pages serves the static app and generated
+  document exports directly.
 
 ## 11. Glossary
 
@@ -604,3 +612,4 @@ Production note:
 | 2.10 | June 29, 2026 | Added footer app version and UTC build timestamp |
 | 2.11 | June 29, 2026 | Added professional document-control formatting and current prototype status snapshot |
 | 2.12 | June 29, 2026 | Added two-mile meal/gas search radius, route creation copy, and two-column route form layout |
+| 2.13 | June 29, 2026 | Added GitHub Pages `.nojekyll` deployment configuration |
