@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.21  
+**Version:** 2.22  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.21 |
+| Current version | 2.22 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -36,8 +36,8 @@ weather forecasts, dining options, gas stations, traffic conditions, and travel 
 |---|---|
 | Primary travel mode | Car travel implemented with live routing |
 | Route display | Leaflet/OpenStreetMap map with OSRM route geometry and turn-by-turn directions |
-| Meal options | Live OpenStreetMap/Overpass restaurant, cafe, and fast-food recommendations within 2 miles of planned route stops |
-| Gas stations | Live OpenStreetMap/Overpass recommendations within 2 miles of planned route stops |
+| Meal options | Live OpenStreetMap/Overpass restaurant, cafe, and fast-food recommendations within 2 miles of route recommendation stops |
+| Gas stations | Live OpenStreetMap/Overpass recommendations within 2 miles of route recommendation stops |
 | Weather | National Weather Service active-alert overlays for United States routes |
 | User preferences | Theme, date format, timezone, gas toggle, and restaurant toggle UI in place |
 | Remaining major gaps | Weather forecasts, real-time traffic incidents, public transit, flights, and full accessibility audit |
@@ -193,8 +193,8 @@ The application shall automatically plan recurring meal stops during travel.
 Prototype status:
 - Implemented for car routes using selected departure date, departure time, selected timezone, and
   OSRM step durations.
-- Trips of two hours or less do not request food or gas recommendations.
-- Trips over two hours but under four hours use one midpoint recommendation stop.
+- Trips under four hours use one midpoint recommendation stop so short local routes still surface
+  nearby food and gas options.
 - Trips of four hours or longer estimate where the car will be every four hours of driving time since
   the trip start or previous stop and label each stop as `Suggested food stop`.
 - Four-hour waypoint locations are interpolated by distance along OSRM step geometry so long highway
@@ -211,8 +211,8 @@ Prototype status:
 - Restaurant toggle is implemented.
 - Cuisine selector remains future work.
 - Recommendations are automatically loaded from the calculated food/gas stop waypoints.
-- Trips over two hours but shorter than four hours search near the route midpoint and display up to
-  five food options when public OSM data is available.
+- Trips shorter than four hours search near the route midpoint and display up to five food options
+  when public OSM data is available.
 
 **REQ-4.3.3: Restaurant Display**  
 When restaurants are enabled, the application shall display restaurants along the route.
@@ -221,8 +221,8 @@ Prototype status:
 - Implemented using OpenStreetMap restaurant, cafe, and fast-food data via Overpass.
 - The app searches within 2 miles of each calculated waypoint rather than broadly sampling the whole
   route corridor.
-- For trips over two hours but shorter than four hours, the app groups recommendations under a
-  short-trip midpoint recommendation stop.
+- For trips shorter than four hours, the app groups recommendations under a short-trip midpoint
+  recommendation stop.
 - Restaurants are grouped by detected four-hour suggested food stops in the meal panel with
   approximate pass-through time, driving time including prior food stops, miles from origin, nearby
   road segment, cuisine/address details where available, and approximate distance from the stop area.
@@ -297,13 +297,17 @@ Prototype status:
 - Fuel station search is limited to named fuel options within 2 miles of each planned route stop.
 - If no fuel options are found at a planned stop, the app searches ahead in the direction of travel
   and displays the next available options found within 2 miles of a forward route point.
-- Trips over two hours but shorter than four hours search near the route midpoint and display up to
-  five gas options when public OSM data is available.
+- Trips shorter than four hours search near the route midpoint and display up to five gas options
+  when public OSM data is available.
 - Meal and fuel Overpass requests run independently with request timeouts so one slow lookup does not
   block the other from rendering.
+- Meal and fuel lookups can fail over across multiple public Overpass mirrors before showing an
+  unavailable state.
 - OpenStreetMap fuel stations without a public name, brand, or operator are displayed as `Fuel
   station` instead of being discarded.
 - Forward fallback results show how far ahead of the planned stop they are.
+- Fuel station lookup uses staged direct, forward fallback, and per-point retry requests so short
+  public API misses do not leave the whole gas panel empty.
 
 **REQ-4.6.2: Gas Station Information**  
 When displayed, gas stations shall show location, route distance, estimated prices, fuel types, and
@@ -313,8 +317,7 @@ Prototype status:
 - Gas station options also appear immediately after food options in the meal recommendations panel.
 - Fuel suggestions are loaded from OpenStreetMap fuel station data via Overpass around the same
   planned waypoint areas used for food recommendations.
-- For trips over two hours but shorter than four hours, fuel suggestions are loaded near the route
-  midpoint.
+- For trips shorter than four hours, fuel suggestions are loaded near the route midpoint.
 - Fuel options are grouped under the paired food stop and sorted near the displayed food options
   when restaurant data is available.
 - Each fuel station card includes a clickable Google Maps place link, a lazy-loaded Street View
@@ -361,8 +364,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.11` and UTC build timestamp
-  `2026-06-29 14:56 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.18` and UTC build timestamp
+  `2026-06-29 18:50 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -489,8 +492,7 @@ Production note:
 - [x] Application displays actual restaurants, cafes, and fast-food options along the route.
 - [x] Application targets meal recommendations every four hours of driving time for trips of four
       hours or longer.
-- [x] Application uses one midpoint recommendation stop for trips over two hours but shorter than four
-      hours.
+- [x] Application uses one midpoint recommendation stop for trips shorter than four hours.
 - [x] Application limits meal and gas recommendation searches to within 2 miles of the active route
       waypoint.
 - [x] Application displays up to five food and five gas recommendations for trips under four hours
@@ -622,6 +624,10 @@ Production note:
 - Updated frontend asset cache-busting and footer stamp to app version `v2.16`.
 - Added lazy-loaded Street View thumbnails to food and fuel stop cards.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.17`.
+- Added midpoint food and gas recommendations for short local car routes that are under two hours.
+- Added more Overpass mirrors and updated fuel station lookups to use staged direct, forward
+  fallback, and per-point retry requests.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.18`.
 
 ## 11. Glossary
 
@@ -673,3 +679,4 @@ Production note:
 | 2.19 | June 29, 2026 | Added Overpass timeout handling and unnamed fuel station fallback |
 | 2.20 | June 29, 2026 | Added forward fallback lookup for planned stops without nearby food or fuel |
 | 2.21 | June 29, 2026 | Added Street View thumbnails to food and fuel stop cards |
+| 2.22 | June 29, 2026 | Added short-route midpoint Food/Gas recommendations and more resilient Overpass fuel lookup retries |
