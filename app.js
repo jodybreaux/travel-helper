@@ -28,8 +28,8 @@ const routes = [
   },
 ];
 
-const MEAL_SEARCH_RADIUS_METERS = 8000;
-const FUEL_SEARCH_RADIUS_METERS = 12000;
+const ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS = 3219;
+const ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES = 2;
 const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
 const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const MAX_RESTAURANTS_PER_STOP = 3;
@@ -485,7 +485,7 @@ function buildRestaurantQuery(points) {
     .map(
       (point) => {
         const [lon, lat] = Array.isArray(point) ? point : [point.lon, point.lat];
-        return `node["amenity"="restaurant"](around:${MEAL_SEARCH_RADIUS_METERS},${lat},${lon});way["amenity"="restaurant"](around:${MEAL_SEARCH_RADIUS_METERS},${lat},${lon});relation["amenity"="restaurant"](around:${MEAL_SEARCH_RADIUS_METERS},${lat},${lon});`;
+        return `node["amenity"="restaurant"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});way["amenity"="restaurant"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});relation["amenity"="restaurant"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${lat},${lon});`;
       },
     )
     .join("");
@@ -497,7 +497,7 @@ function buildFuelQuery(points) {
   const searches = points
     .map(
       (point) =>
-        `node["amenity"="fuel"](around:${FUEL_SEARCH_RADIUS_METERS},${point.lat},${point.lon});way["amenity"="fuel"](around:${FUEL_SEARCH_RADIUS_METERS},${point.lat},${point.lon});relation["amenity"="fuel"](around:${FUEL_SEARCH_RADIUS_METERS},${point.lat},${point.lon});`,
+        `node["amenity"="fuel"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${point.lat},${point.lon});way["amenity"="fuel"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${point.lat},${point.lon});relation["amenity"="fuel"](around:${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS},${point.lat},${point.lon});`,
     )
     .join("");
 
@@ -969,14 +969,14 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
   renderGasStations();
 
   if (restaurantToggle.checked) {
-    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants along the route...</div>`;
+    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of the route...</div>`;
   } else {
     renderRestaurants();
   }
 
   if (gasToggle.checked) {
     gasPanel.className = "empty-state";
-    gasPanel.innerHTML = "Looking for fuel stations along the route...";
+    gasPanel.innerHTML = `Looking for fuel stations within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of the route...`;
   }
 
   if (restaurantToggle.checked) {
@@ -1024,11 +1024,11 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     activeFuelStations = [];
     activeTripStops = [];
     if (restaurantToggle.checked) {
-      restaurantList.innerHTML = `<div class="empty-state">Checking the route for food recommendations...</div>`;
+      restaurantList.innerHTML = `<div class="empty-state">Checking within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of the route for food recommendations...</div>`;
     }
     if (gasToggle.checked) {
       gasPanel.className = "empty-state";
-      gasPanel.innerHTML = "Checking the route for gas recommendations...";
+      gasPanel.innerHTML = `Checking within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of the route for gas recommendations...`;
     }
     drawRestaurantMarkers([]);
 
@@ -1146,7 +1146,7 @@ function renderRestaurants() {
                 `,
               )
               .join("")
-          : `<div class="empty-state">${tripStop.isShortTrip ? "No named restaurants found near this route yet." : "No named restaurants found near this four-hour stop."}</div>`;
+          : `<div class="empty-state">${tripStop.isShortTrip ? `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named restaurants found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`;
         const gasMarkup = gasOptions
           .map(
             (station) => `
@@ -1157,7 +1157,7 @@ function renderRestaurants() {
               </div>
             `,
           )
-          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? "No named fuel stations found near this route yet." : "No named fuel stations found near this food stop yet."}</div>`;
+          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this food stop yet.`}</div>`;
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} food and gas options">
@@ -1323,7 +1323,7 @@ function renderGasStations() {
               </div>
             `,
           )
-          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? "No named fuel stations found near this route yet." : "No named fuel stations found near this four-hour stop."}</div>`;
+          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this route yet.` : `No named fuel stations found within ${ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES} miles of this four-hour stop.`}</div>`;
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">
@@ -1367,21 +1367,21 @@ async function previewTrip({ scrollToRoutes = false } = {}) {
   }
 
   if (!origin || !destination) {
-    formMessage.textContent = "Enter both an origin and destination to preview routes.";
+    formMessage.textContent = "Enter both an origin and destination to create a route.";
     return;
   }
 
   if (mode !== "Car") {
-    formMessage.textContent = `${mode} support is planned. This prototype currently previews car routes.`;
+    formMessage.textContent = `${mode} support is planned. This prototype currently creates car routes.`;
     return;
   }
-
-  formMessage.textContent = `Previewing car routes from ${origin} to ${destination}.`;
-  await loadDrivingDirections(origin, destination, departureAt, requestId);
 
   if (scrollToRoutes) {
     showPage("routes");
   }
+
+  formMessage.textContent = `Creating car routes from ${origin} to ${destination}.`;
+  await loadDrivingDirections(origin, destination, departureAt, requestId);
 }
 
 const scheduleTripPreview = debounce(() => {

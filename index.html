@@ -8,7 +8,7 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-    <link rel="stylesheet" href="styles.css?v=2.10-build-stamp" />
+    <link rel="stylesheet" href="styles.css?v=2.11-two-mile-route-form" />
   </head>
   <body>
     <header class="site-header">
@@ -65,63 +65,73 @@
 
         <form class="planner-card" id="tripForm">
           <div class="form-grid">
-            <label>
-              Departure from origin
-              <input id="departDate" name="departDate" type="date" required />
-            </label>
-            <label>
-              Departure time
-              <input id="departTime" name="departTime" type="time" value="08:00" required />
-            </label>
-            <label class="field-wide">
-              Origin city or address
-              <input
-                id="origin"
-                name="origin"
-                type="text"
-                placeholder="1105 San Augustine Dr, 78733"
-                list="originSuggestions"
-                autocomplete="street-address"
-                required
-              />
-              <datalist id="originSuggestions"></datalist>
-            </label>
-            <label class="field-wide">
-              Final destination
-              <input
-                id="destination"
-                name="destination"
-                type="text"
-                placeholder="13601 Golden Wave Loop, 78738"
-                list="destinationSuggestions"
-                autocomplete="street-address"
-                required
-              />
-              <datalist id="destinationSuggestions"></datalist>
-            </label>
-            <label>
-              Leave destination
-              <input id="returnDate" name="returnDate" type="date" required />
-            </label>
-            <label>
-              Mode of Travel
-              <select id="mode" name="mode">
-                <option>Car</option>
-                <option>Train</option>
-                <option>Bus</option>
-                <option>Airplane</option>
-              </select>
-            </label>
-            <label>
-              Time zone
-              <select id="timezone" name="timezone">
-                <option value="America/Chicago">Central Time</option>
-                <option value="America/New_York">Eastern Time</option>
-                <option value="America/Denver">Mountain Time</option>
-                <option value="America/Los_Angeles">Pacific Time</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </label>
+            <div class="form-columns">
+              <fieldset class="form-column">
+                <legend>Departure information</legend>
+                <label>
+                  Origin city or address
+                  <input
+                    id="origin"
+                    name="origin"
+                    type="text"
+                    placeholder="1105 San Augustine Dr, 78733"
+                    list="originSuggestions"
+                    autocomplete="street-address"
+                    required
+                  />
+                  <datalist id="originSuggestions"></datalist>
+                </label>
+                <label>
+                  Departure from origin
+                  <input id="departDate" name="departDate" type="date" required />
+                </label>
+                <label>
+                  Departure time
+                  <input id="departTime" name="departTime" type="time" value="08:00" required />
+                </label>
+              </fieldset>
+              <fieldset class="form-column">
+                <legend>Destination information</legend>
+                <label>
+                  Final destination
+                  <input
+                    id="destination"
+                    name="destination"
+                    type="text"
+                    placeholder="13601 Golden Wave Loop, 78738"
+                    list="destinationSuggestions"
+                    autocomplete="street-address"
+                    required
+                  />
+                  <datalist id="destinationSuggestions"></datalist>
+                </label>
+                <label>
+                  Leave destination
+                  <input id="returnDate" name="returnDate" type="date" required />
+                </label>
+              </fieldset>
+            </div>
+            <div class="form-secondary-row">
+              <label>
+                Mode of Travel
+                <select id="mode" name="mode">
+                  <option>Car</option>
+                  <option>Train</option>
+                  <option>Bus</option>
+                  <option>Airplane</option>
+                </select>
+              </label>
+              <label>
+                Time zone
+                <select id="timezone" name="timezone">
+                  <option value="America/Chicago">Central Time</option>
+                  <option value="America/New_York">Eastern Time</option>
+                  <option value="America/Denver">Mountain Time</option>
+                  <option value="America/Los_Angeles">Pacific Time</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           <div class="preference-row" aria-label="Trip preferences">
@@ -146,9 +156,9 @@
 
           <div class="form-footer">
             <p class="form-message" id="formMessage" role="status">
-              Fill out the form to preview route recommendations.
+              Fill out the form to create route recommendations.
             </p>
-            <button class="button button-primary" type="submit">Preview routes</button>
+            <button class="button button-primary" type="submit">Create route</button>
           </div>
         </form>
       </section>
@@ -218,7 +228,7 @@
             <span class="icon-bubble">M</span>
             <div>
               <h3>Meal Recommendations</h3>
-              <p>Suggested food stops with paired gas options based on where the car is expected to be.</p>
+              <p>Suggested food stops with paired gas options within 2 miles of the route.</p>
             </div>
           </div>
           <div class="restaurant-list" id="restaurantList"></div>
@@ -231,7 +241,7 @@
             <span class="icon-bubble">G</span>
             <div>
               <h3>Fuel Stops</h3>
-              <p>Optional gas stations within range of the route.</p>
+              <p>Optional gas stations within 2 miles of the route.</p>
             </div>
           </div>
           <div id="gasPanel" class="empty-state">Gas station display is off.</div>
@@ -240,10 +250,10 @@
     </main>
 
     <footer class="site-footer">
-      <p>Cajun Travel Services · v2.10 · Built 2026-06-29 14:41 UTC</p>
+      <p>Cajun Travel Services · v2.11 · Built 2026-06-29 14:56 UTC</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js?v=2.10-build-stamp"></script>
+    <script src="app.js?v=2.11-two-mile-route-form"></script>
   </body>
 </html>

@@ -1,10 +1,25 @@
-# Software Requirements Document
+# Travel Helper Application
 
-## Travel Helper Application
+## Software Requirements Document
 
-**Version:** 2.10
+**Version:** 2.12  
 **Date:** June 29, 2026  
-**Status:** Draft, prototype in progress  
+**Status:** Prototype in progress  
+**Prepared for:** Jody Breaux  
+**Prepared by:** Cajun Travel Services project workspace  
+**Distribution:** jodyjbreaux@gmail.com
+
+## Document Control
+
+| Field | Value |
+|---|---|
+| Document owner | Jody Breaux |
+| Project | Travel Helper Application |
+| Document type | Software Requirements Document |
+| Current version | 2.12 |
+| Current status | Prototype in progress |
+| Last updated | June 29, 2026 |
+| Primary implementation artifact | `index.html` |
 
 ## 1. Executive Summary
 
@@ -14,6 +29,18 @@ real-time or near-real-time travel information.
 
 The application enables users to plan safer and more efficient trips by considering route options,
 weather forecasts, dining options, gas stations, traffic conditions, and travel alerts.
+
+### 1.1 Current Prototype Snapshot
+
+| Area | Current Status |
+|---|---|
+| Primary travel mode | Car travel implemented with live routing |
+| Route display | Leaflet/OpenStreetMap map with OSRM route geometry and turn-by-turn directions |
+| Restaurants | Live OpenStreetMap/Overpass recommendations within 2 miles of route stop areas |
+| Gas stations | Live OpenStreetMap/Overpass recommendations within 2 miles of route stop areas |
+| Weather | National Weather Service active-alert overlays for United States routes |
+| User preferences | Theme, date format, timezone, gas toggle, and restaurant toggle UI in place |
+| Remaining major gaps | Weather forecasts, real-time traffic incidents, public transit, flights, and full accessibility audit |
 
 ## 2. Project Overview
 
@@ -194,6 +221,7 @@ Prototype status:
 - Restaurants are grouped by detected four-hour suggested food stops in the meal panel with
   approximate pass-through time, driving time including prior food stops, miles from origin, nearby
   road segment, cuisine/address details where available, and approximate distance from the stop area.
+- Restaurant search is limited to named food options within 2 miles of the active route stop area.
 - Each food stop group also lists paired gas options immediately after the food options, and
   alternating group colors distinguish consecutive food/gas stops.
 - Each restaurant card includes a clickable Google Maps place link, a Street View action with a
@@ -257,6 +285,7 @@ Prototype status:
 - Implemented as a UI toggle, enabled by default.
 - Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
   recommendations when public Overpass data is available.
+- Fuel station search is limited to named fuel options within 2 miles of the active route stop area.
 - Trips shorter than four hours search near the route midpoint and display up to five gas options
   when public OSM data is available.
 
@@ -310,9 +339,12 @@ Prototype status:
   long scrollable page.
 - Landing-page navigation buttons are displayed as a left-side action rail.
 - Route entry is shown only after the user selects the route info page.
+- Route creation uses a `Create route` submit button that returns users to the route-selection page.
+- The route information form is arranged in two columns: departure information on the left and
+  destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with the current app version and UTC build
-  timestamp.
+- Footer branding displays `Cajun Travel Services` with app version `v2.11` and UTC build timestamp
+  `2026-06-29 14:56 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Final itinerary view remains future work.
@@ -425,6 +457,8 @@ Production note:
 - [x] Application frames the full selected route on the map without over-zooming short trips.
 - [x] Application displays actual restaurants along the route.
 - [x] Application targets meal recommendations every four hours of driving time.
+- [x] Application limits meal and gas recommendation searches to within 2 miles of the active route
+      stop area.
 - [x] Application displays up to five food and five gas recommendations for trips under four hours
       when available from public OSM data.
 - [x] Application ties restaurant and gas recommendations to shared route stops with approximate
@@ -520,6 +554,14 @@ Production note:
   `Transportation` to `Mode of Travel`.
 - Added a footer build stamp showing app version `v2.10` and build timestamp
   `2026-06-29 14:41 UTC`.
+- Refined this SRD into a distribution-ready professional format with document-control metadata and
+  a current prototype status snapshot.
+- Limited meal and gas recommendations to results within 2 miles of the active route stop area.
+- Renamed the route form submit button to `Create route` and kept the submit flow on the route
+  selection screen.
+- Reorganized the route information form into departure and destination columns with mode of travel
+  and timezone controls below.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.11`.
 
 ## 11. Glossary
 
@@ -560,3 +602,5 @@ Production note:
 | 2.8 | June 29, 2026 | Defaulted detailed turn-by-turn directions to a collapsed toggle |
 | 2.9 | June 29, 2026 | Added short-trip food/gas recommendations and simplified trip entry fields |
 | 2.10 | June 29, 2026 | Added footer app version and UTC build timestamp |
+| 2.11 | June 29, 2026 | Added professional document-control formatting and current prototype status snapshot |
+| 2.12 | June 29, 2026 | Added two-mile meal/gas search radius, route creation copy, and two-column route form layout |

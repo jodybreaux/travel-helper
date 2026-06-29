@@ -412,12 +412,38 @@ h3 {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.15rem;
+}
+
+.form-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.field-wide {
-  grid-column: span 2;
+.form-column {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  background: var(--surface-strong);
+}
+
+.form-column legend {
+  padding: 0 0.35rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.form-secondary-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 label {
@@ -969,13 +995,10 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .form-columns,
+  .form-secondary-row {
+    grid-template-columns: 1fr;
     gap: 0.85rem;
-  }
-
-  .field-wide {
-    grid-column: 1 / -1;
   }
 
   .planner-card,
@@ -1025,12 +1048,12 @@ a:focus-visible {
 }
 
 @media (max-width: 360px) {
-  .form-grid,
+  .form-columns,
+  .form-secondary-row,
   .preference-row {
     grid-template-columns: 1fr;
   }
 
-  .field-wide,
   .preference-select {
     grid-column: auto;
   }
