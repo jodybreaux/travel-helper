@@ -951,6 +951,37 @@ function updateRouteCardStats(routeOptions = activeRouteOptions) {
   });
 }
 
+function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
+  selectedRouteIndex = null;
+  activeRouteOptions = [];
+  activeRestaurants = [];
+  activeFuelStations = [];
+  activeTripStops = [];
+
+  if (routeLayer) {
+    routeLayer.remove();
+    routeLayer = null;
+  }
+  if (originMarker) {
+    originMarker.remove();
+    originMarker = null;
+  }
+  if (destinationMarker) {
+    destinationMarker.remove();
+    destinationMarker = null;
+  }
+
+  clearDirections();
+  drawRestaurantMarkers([]);
+  weatherAlertLayer?.clearLayers();
+  routeSummary.textContent = "Creating a fresh route...";
+  mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
+  routeGrid.innerHTML = `<div class="empty-state">Creating a fresh route from ${escapeHtml(originQuery)} to ${escapeHtml(destinationQuery)}...</div>`;
+  restaurantList.innerHTML = `<div class="empty-state">Food recommendations will load after the new route is ready.</div>`;
+  gasPanel.className = "empty-state";
+  gasPanel.innerHTML = "Gas recommendations will load after the new route is ready.";
+}
+
 async function displayRouteSelection(index, requestId = previewRequestId) {
   const route = activeRouteOptions[index];
   if (!route || !activeOrigin || !activeDestination) return;
@@ -1378,6 +1409,7 @@ async function previewTrip({ scrollToRoutes = false } = {}) {
 
   if (scrollToRoutes) {
     showPage("routes");
+    clearRouteResultsForNewRequest(origin, destination);
   }
 
   formMessage.textContent = `Creating car routes from ${origin} to ${destination}.`;

@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.14  
+**Version:** 2.15  
 **Date:** June 29, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.14 |
+| Current version | 2.15 |
 | Current status | Prototype in progress |
 | Last updated | June 29, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -347,6 +347,8 @@ Prototype status:
   `2026-06-29 14:56 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
+- Starting a new explicit route creation clears the previously displayed route, map, directions, meal
+  recommendations, and gas recommendations before loading the new route.
 - Final itinerary view remains future work.
 
 ### 5.4 Accessibility
@@ -462,6 +464,8 @@ Production note:
 - [x] Application recalculates route details when user-selectable trip criteria change.
 - [x] Application collapses route choices to the selected route with a link to restore all options.
 - [x] Application redraws route-specific map and detail data when an alternate route is selected.
+- [x] Application clears prior route results when the user creates a different route from the route
+      information screen.
 - [x] Application frames the full selected route on the map without over-zooming short trips.
 - [x] Application displays actual restaurants along the route.
 - [x] Application targets meal recommendations every four hours of driving time.
@@ -573,6 +577,9 @@ Production note:
 - Added `.nojekyll` deployment configuration so GitHub Pages serves the static app directly.
 - Removed generated document exports from the published branch to keep the GitHub Pages build focused
   on the static prototype.
+- Fixed stale route results so creating a different route immediately clears the prior route display
+  before loading the new results.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.12`.
 
 ## 11. Glossary
 
@@ -617,3 +624,4 @@ Production note:
 | 2.12 | June 29, 2026 | Added two-mile meal/gas search radius, route creation copy, and two-column route form layout |
 | 2.13 | June 29, 2026 | Added GitHub Pages `.nojekyll` deployment configuration |
 | 2.14 | June 29, 2026 | Removed generated document exports from published static site branch |
+| 2.15 | June 29, 2026 | Fixed stale route results when creating a different route |
