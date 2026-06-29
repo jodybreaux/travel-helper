@@ -8,7 +8,7 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-    <link rel="stylesheet" href="styles.css?v=2.8-directions-toggle" />
+    <link rel="stylesheet" href="styles.css?v=2.9-short-trip-stops" />
   </head>
   <body>
     <header class="site-header">
@@ -86,10 +86,6 @@
               />
               <datalist id="originSuggestions"></datalist>
             </label>
-            <label>
-              Arrival at destination
-              <input id="arrivalDate" name="arrivalDate" type="date" required />
-            </label>
             <label class="field-wide">
               Final destination
               <input
@@ -108,11 +104,7 @@
               <input id="returnDate" name="returnDate" type="date" required />
             </label>
             <label>
-              Desired return home
-              <input id="homeDate" name="homeDate" type="date" required />
-            </label>
-            <label>
-              Transportation
+              Mode of Travel
               <select id="mode" name="mode">
                 <option>Car</option>
                 <option>Train</option>
@@ -252,6 +244,6 @@
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js?v=2.8-directions-toggle"></script>
+    <script src="app.js?v=2.9-short-trip-stops"></script>
   </body>
 </html>

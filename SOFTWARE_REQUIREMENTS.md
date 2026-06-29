@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.8
+**Version:** 2.9
 **Date:** June 29, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -47,11 +47,9 @@ personalized options for dining and fuel stops.
 | Date of Departure from Origin | Start date of trip | Date picker | Implemented |
 | Time of Departure from Origin | Start time of trip | Time picker | Implemented |
 | Departure City/Address | Origin location | Text input with geocoding | Implemented with Nominatim |
-| Date(s) at Final Destination | Arrival date at destination | Date picker | Implemented |
 | Location of Final Destination | Destination address | Text input with geocoding | Implemented with Nominatim |
 | Departure Date from Final Destination | Date user leaves destination | Date picker | Implemented |
-| Desired Arrival Date at Origin | Target return date | Date picker | Implemented |
-| Mode of Transportation | Primary travel method | Car, Train, Bus, Airplane | UI implemented; car routing active |
+| Mode of Travel | Primary travel method | Car, Train, Bus, Airplane | UI implemented; car routing active |
 
 ### 3.2 User Preferences
 
@@ -97,19 +95,17 @@ Prototype status:
 **REQ-4.1.3: Date Logic Validation**  
 The application shall validate logical date sequences:
 
-- Departure date from origin must be before arrival date at destination.
-- Departure date from destination must be after arrival date at destination.
-- Arrival date at origin must be after departure date from destination.
-- All dates must be today or in the future.
+- Departure date from origin must be today or in the future.
+- Departure date from destination must be on or after departure date from origin.
 
 Prototype status:
 - Implemented for date sequence and future minimum dates.
-- Default departure and destination arrival dates are set to today.
-- Default leave-destination and return-home dates are set to tomorrow.
-- Date fields cascade automatically: arrival cannot be before departure, leave destination must be
-  after arrival, and desired return home must be after leaving the destination.
+- Default departure date is set to today.
+- Default leave-destination date is set to tomorrow.
+- Date fields cascade automatically so leave destination cannot be before departure.
+- Arrival-at-destination and desired-return-home fields were removed from the prototype entry form.
 
-**REQ-4.1.4: Transportation Mode Validation**  
+**REQ-4.1.4: Mode Of Travel Validation**  
 The application shall only calculate routes applicable to the selected transportation mode.
 
 Prototype status:
@@ -185,7 +181,8 @@ Prototype status:
 - Cuisine selector remains future work.
 - Recommendations are automatically loaded when a four-hour food stop falls within the calculated
   driving route.
-- Trips shorter than four hours show a route-stop message instead of generic nearby food suggestions.
+- Trips shorter than four hours search near the route midpoint and display up to five food options
+  when public OSM data is available.
 
 **REQ-4.3.3: Restaurant Display**  
 When restaurants are enabled, the application shall display restaurants along the route.
@@ -193,6 +190,7 @@ When restaurants are enabled, the application shall display restaurants along th
 Prototype status:
 - Implemented using OpenStreetMap restaurant data via Overpass.
 - The app samples the calculated driving route at four-hour driving intervals.
+- For trips shorter than four hours, the app samples the route midpoint for food recommendations.
 - Restaurants are grouped by detected four-hour suggested food stops in the meal panel with
   approximate pass-through time, driving time including prior food stops, miles from origin, nearby
   road segment, cuisine/address details where available, and approximate distance from the stop area.
@@ -259,6 +257,8 @@ Prototype status:
 - Implemented as a UI toggle, enabled by default.
 - Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
   recommendations when public Overpass data is available.
+- Trips shorter than four hours search near the route midpoint and display up to five gas options
+  when public OSM data is available.
 
 **REQ-4.6.2: Gas Station Information**  
 When displayed, gas stations shall show location, route distance, estimated prices, fuel types, and
@@ -268,6 +268,7 @@ Prototype status:
 - Gas station options also appear immediately after food options in the meal recommendations panel.
 - Fuel suggestions are loaded from OpenStreetMap fuel station data via Overpass around the same
   four-hour stop areas used for food recommendations.
+- For trips shorter than four hours, fuel suggestions are loaded near the route midpoint.
 - Fuel options are grouped under the paired food stop and sorted near the displayed food options
   when restaurant data is available.
 - Each fuel station card includes a clickable Google Maps place link, a Street View action with a
@@ -423,6 +424,8 @@ Production note:
 - [x] Application frames the full selected route on the map without over-zooming short trips.
 - [x] Application displays actual restaurants along the route.
 - [x] Application targets meal recommendations every four hours of driving time.
+- [x] Application displays up to five food and five gas recommendations for trips under four hours
+      when available from public OSM data.
 - [x] Application ties restaurant and gas recommendations to shared route stops with approximate
       pass-through times, one-hour food-stop timing, and miles from origin.
 - [x] Application provides clickable place links, Street View links, and driving-directions links for
@@ -510,6 +513,10 @@ Production note:
 - Capped the automatic live route map overview zoom while continuing to fit the full selected trip in
   view and leaving manual zoom controls available.
 - Added a collapsed-by-default toggle for detailed turn-by-turn driving instructions.
+- Added food and gas recommendations for trips under four hours using a route-midpoint search, with
+  up to five options of each when available.
+- Removed `Arrival at destination` and `Desired return home` from the trip entry form and renamed
+  `Transportation` to `Mode of Travel`.
 
 ## 11. Glossary
 
@@ -548,3 +555,4 @@ Production note:
 | 2.6 | June 25, 2026 | Replaced repeating mock fuel options with coordinated live OSM fuel suggestions |
 | 2.7 | June 29, 2026 | Added capped route overview zoom and updated route options heading copy |
 | 2.8 | June 29, 2026 | Defaulted detailed turn-by-turn directions to a collapsed toggle |
+| 2.9 | June 29, 2026 | Added short-trip food/gas recommendations and simplified trip entry fields |

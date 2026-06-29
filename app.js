@@ -34,6 +34,7 @@ const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
 const FOOD_STOP_DURATION_SECONDS = 60 * 60;
 const MAX_RESTAURANTS_PER_STOP = 3;
 const MAX_FUEL_STATIONS_PER_STOP = 3;
+const SHORT_TRIP_RECOMMENDATION_LIMIT = 5;
 const ROUTE_OPTION_COUNT = routes.length;
 const MAX_SYNTHETIC_ROUTE_ATTEMPTS = 12;
 const ROUTE_OVERVIEW_MAX_ZOOM = 11;
@@ -105,9 +106,7 @@ function setDefaultDates() {
   const tomorrowValue = addDays(today, 1);
   const defaults = {
     departDate: today,
-    arrivalDate: today,
     returnDate: tomorrowValue,
-    homeDate: tomorrowValue,
   };
 
   Object.entries(defaults).forEach(([id, value]) => {
@@ -147,26 +146,14 @@ function showPage(pageName, { scroll = true } = {}) {
 
 function syncDateSequence(changedId = "") {
   const departDate = document.querySelector("#departDate");
-  const arrivalDate = document.querySelector("#arrivalDate");
   const returnDate = document.querySelector("#returnDate");
-  const homeDate = document.querySelector("#homeDate");
   const today = getToday();
 
   ensureDateAtLeast(departDate, today);
-  ensureDateAtLeast(arrivalDate, departDate.value);
-  ensureDateAtLeast(returnDate, addDays(arrivalDate.value, 1));
-  ensureDateAtLeast(homeDate, addDays(returnDate.value, 1));
+  ensureDateAtLeast(returnDate, departDate.value);
 
   if (changedId === "departDate") {
-    ensureDateAtLeast(arrivalDate, departDate.value);
-  }
-
-  if (changedId === "arrivalDate" || changedId === "departDate") {
-    ensureDateAtLeast(returnDate, addDays(arrivalDate.value, 1));
-  }
-
-  if (changedId === "returnDate" || changedId === "arrivalDate" || changedId === "departDate") {
-    ensureDateAtLeast(homeDate, addDays(returnDate.value, 1));
+    ensureDateAtLeast(returnDate, departDate.value);
   }
 }
 
@@ -650,6 +637,38 @@ function getFourHourTripStops(route, departureAt) {
   return tripStops;
 }
 
+function getShortTripRecommendationStops(route, departureAt) {
+  if ((route.duration || 0) >= TRIP_STOP_INTERVAL_SECONDS) {
+    return [];
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((route.duration || 0) / 2));
+  const location = getRoutePositionAtElapsed(route, elapsedSeconds);
+  if (!location) return [];
+
+  const passTime = new Date(departureAt.getTime() + elapsedSeconds * 1000);
+
+  return [
+    {
+      id: `short-trip-${passTime.toISOString()}`,
+      stopNumber: 1,
+      label: "Short trip recommendations",
+      passTime,
+      elapsedSeconds,
+      elapsedWithStopsSeconds: elapsedSeconds,
+      stopDurationSeconds: 0,
+      colorClass: "stop-theme-a",
+      isShortTrip: true,
+      ...location,
+    },
+  ];
+}
+
+function getTripRecommendationStops(route, departureAt) {
+  const fourHourStops = getFourHourTripStops(route, departureAt);
+  return fourHourStops.length ? fourHourStops : getShortTripRecommendationStops(route, departureAt);
+}
+
 function getDepartureDateTime(formData) {
   const date = formData.get("departDate") || document.querySelector("#departDate").value;
   const time = formData.get("departTime") || document.querySelector("#departTime").value || "08:00";
@@ -687,6 +706,7 @@ function normalizeRestaurant(element, tripStops = []) {
     road: tripStop?.road || "route area",
     distanceFromOriginMiles: tripStop?.distanceFromOriginMiles,
     distanceMiles: tripStop?.distanceMiles,
+    isShortTrip: Boolean(tripStop?.isShortTrip),
     details: `${cuisine}${address ? ` · ${address}` : ""}${hours}`,
     lat,
     lon,
@@ -694,7 +714,7 @@ function normalizeRestaurant(element, tripStops = []) {
 }
 
 async function fetchRestaurantsAlongRoute(route, departureAt) {
-  const tripStops = activeTripStops.length ? activeTripStops : getFourHourTripStops(route, departureAt);
+  const tripStops = activeTripStops.length ? activeTripStops : getTripRecommendationStops(route, departureAt);
   activeTripStops = tripStops;
 
   if (!tripStops.length) {
@@ -719,7 +739,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt) {
     })
     .filter((restaurant, index, restaurants) => {
       const stopCount = restaurants.slice(0, index).filter((item) => item.tripStopId === restaurant.tripStopId).length;
-      return stopCount < MAX_RESTAURANTS_PER_STOP;
+      return stopCount < getFoodRecommendationLimit(restaurant);
     });
 }
 
@@ -754,6 +774,7 @@ function normalizeFuelStation(element, tripStops = []) {
     name,
     tripStopId: tripStop?.id,
     distanceMiles: tripStop?.distanceMiles,
+    isShortTrip: Boolean(tripStop?.isShortTrip),
     details: `${address || "Address not listed"}${fuelDetails}${hours}`,
     lat,
     lon,
@@ -761,7 +782,7 @@ function normalizeFuelStation(element, tripStops = []) {
 }
 
 async function fetchFuelStationsAlongRoute(route, departureAt) {
-  const tripStops = activeTripStops.length ? activeTripStops : getFourHourTripStops(route, departureAt);
+  const tripStops = activeTripStops.length ? activeTripStops : getTripRecommendationStops(route, departureAt);
   activeTripStops = tripStops;
 
   if (!tripStops.length) {
@@ -943,19 +964,19 @@ async function displayRouteSelection(index, requestId = previewRequestId) {
 
   activeRestaurants = [];
   activeFuelStations = [];
-  activeTripStops = getFourHourTripStops(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
+  activeTripStops = getTripRecommendationStops(route, activeDepartureAt || getDepartureDateTime(new FormData(tripForm)));
   drawRestaurantMarkers([]);
   renderGasStations();
 
   if (restaurantToggle.checked) {
-    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants near four-hour food and gas stops...</div>`;
+    restaurantList.innerHTML = `<div class="empty-state">Looking for restaurants along the route...</div>`;
   } else {
     renderRestaurants();
   }
 
   if (gasToggle.checked) {
     gasPanel.className = "empty-state";
-    gasPanel.innerHTML = "Looking for fuel stations near the same food-stop areas...";
+    gasPanel.innerHTML = "Looking for fuel stations along the route...";
   }
 
   if (restaurantToggle.checked) {
@@ -1003,11 +1024,11 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     activeFuelStations = [];
     activeTripStops = [];
     if (restaurantToggle.checked) {
-      restaurantList.innerHTML = `<div class="empty-state">Checking the route timing for four-hour food stops...</div>`;
+      restaurantList.innerHTML = `<div class="empty-state">Checking the route for food recommendations...</div>`;
     }
     if (gasToggle.checked) {
       gasPanel.className = "empty-state";
-      gasPanel.innerHTML = "Checking the route timing for four-hour gas stops...";
+      gasPanel.innerHTML = "Checking the route for gas recommendations...";
     }
     drawRestaurantMarkers([]);
 
@@ -1104,7 +1125,7 @@ function renderRestaurants() {
   }
 
   if (!activeTripStops.length) {
-    restaurantList.innerHTML = `<div class="empty-state">No four-hour food stop falls within this route based on the selected departure time.</div>`;
+    restaurantList.innerHTML = `<div class="empty-state">No route recommendation point is available for food suggestions yet.</div>`;
     return;
   }
 
@@ -1125,7 +1146,7 @@ function renderRestaurants() {
                 `,
               )
               .join("")
-          : `<div class="empty-state">No named restaurants found near this four-hour stop.</div>`;
+          : `<div class="empty-state">${tripStop.isShortTrip ? "No named restaurants found near this route yet." : "No named restaurants found near this four-hour stop."}</div>`;
         const gasMarkup = gasOptions
           .map(
             (station) => `
@@ -1136,13 +1157,13 @@ function renderRestaurants() {
               </div>
             `,
           )
-          .join("") || `<div class="empty-state">No named fuel stations found near this food stop yet.</div>`;
+          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? "No named fuel stations found near this route yet." : "No named fuel stations found near this food stop yet."}</div>`;
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} food and gas options">
             <div class="meal-stop-heading">
               <strong>${escapeHtml(tripStop.label)} around ${escapeHtml(formatMealTime(tripStop.passTime))}</strong>
-              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
+              <span>${escapeHtml(getTripStopTimingText(tripStop))}</span>
             </div>
             <div class="meal-stop-options">
               <span class="stop-section-label">Food options</span>
@@ -1213,6 +1234,25 @@ function renderPlaceMapActions(place, placeType) {
   `;
 }
 
+function getFoodRecommendationLimit(item) {
+  return item?.isShortTrip ? SHORT_TRIP_RECOMMENDATION_LIMIT : MAX_RESTAURANTS_PER_STOP;
+}
+
+function getFuelRecommendationLimit(item) {
+  return item?.isShortTrip ? SHORT_TRIP_RECOMMENDATION_LIMIT : MAX_FUEL_STATIONS_PER_STOP;
+}
+
+function getTripStopTimingText(tripStop) {
+  const distanceText = `${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin`;
+  const elapsedText = `${formatDuration(tripStop.elapsedWithStopsSeconds)} into the trip`;
+
+  if (tripStop.isShortTrip) {
+    return `${distanceText} · ${elapsedText} · near ${tripStop.road}`;
+  }
+
+  return `${distanceText} · ${elapsedText}, including prior food stops · near ${tripStop.road}`;
+}
+
 function getNearestRestaurantDistance(station, tripStop) {
   const restaurants = activeRestaurants.filter((restaurant) => restaurant.tripStopId === tripStop.id);
   if (!restaurants.length) return Number.POSITIVE_INFINITY;
@@ -1240,7 +1280,7 @@ function getGasSuggestionsForStop(tripStop) {
       seenStationNames.add(stationKey);
       return true;
     })
-    .slice(0, MAX_FUEL_STATIONS_PER_STOP)
+    .slice(0, getFuelRecommendationLimit(tripStop))
     .map((station) => {
       const distanceText = Number.isFinite(station.distanceMiles)
         ? `${station.distanceMiles.toFixed(1)} mi from stop area`
@@ -1265,7 +1305,7 @@ function renderGasStations() {
 
   if (!activeTripStops.length) {
     gasPanel.className = "empty-state";
-    gasPanel.innerHTML = "No four-hour gas stop falls within this route based on the selected departure time.";
+    gasPanel.innerHTML = "No route recommendation point is available for gas suggestions yet.";
     return;
   }
 
@@ -1283,13 +1323,13 @@ function renderGasStations() {
               </div>
             `,
           )
-          .join("") || `<div class="empty-state">No named fuel stations found near this four-hour stop.</div>`;
+          .join("") || `<div class="empty-state">${tripStop.isShortTrip ? "No named fuel stations found near this route yet." : "No named fuel stations found near this four-hour stop."}</div>`;
 
         return `
           <section class="meal-stop-card ${tripStop.colorClass}" aria-label="${escapeHtml(tripStop.label)} gas options">
             <div class="meal-stop-heading">
               <strong>Gas near ${escapeHtml(tripStop.label.toLowerCase())}</strong>
-              <span>${tripStop.distanceFromOriginMiles.toFixed(0)} mi from origin · ${escapeHtml(formatDuration(tripStop.elapsedWithStopsSeconds))} into the trip, including prior food stops · near ${escapeHtml(tripStop.road)}</span>
+              <span>${escapeHtml(getTripStopTimingText(tripStop))}</span>
             </div>
             <div class="meal-stop-options">
               ${stationMarkup}
@@ -1303,20 +1343,10 @@ function renderGasStations() {
 
 function validateDates(formData) {
   const depart = new Date(formData.get("departDate"));
-  const arrival = new Date(formData.get("arrivalDate"));
   const leave = new Date(formData.get("returnDate"));
-  const home = new Date(formData.get("homeDate"));
 
-  if (depart > arrival) {
-    return "Departure from origin must be before arrival at the destination.";
-  }
-
-  if (arrival >= leave) {
-    return "Leaving the destination must be after arrival at the destination.";
-  }
-
-  if (leave >= home) {
-    return "Desired return home must be after leaving the destination.";
+  if (depart > leave) {
+    return "Leaving the destination must be on or after departure from origin.";
   }
 
   return "";
