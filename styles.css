@@ -892,7 +892,8 @@ a:focus-visible {
 .street-view-thumbnail {
   position: relative;
   display: block;
-  min-height: 126px;
+  width: min(100%, 220px);
+  min-height: 84px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 0.85rem;
@@ -904,7 +905,7 @@ a:focus-visible {
 .street-view-thumbnail iframe {
   display: block;
   width: 100%;
-  height: 126px;
+  height: 84px;
   border: 0;
 }
 
@@ -932,6 +933,30 @@ a:focus-visible {
 .street-view-thumbnail:has(a:focus-visible) {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), transparent 78%);
+}
+
+.loading-state::after {
+  content: "";
+  display: inline-block;
+  width: 1.2rem;
+  text-align: left;
+  animation: loading-dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes loading-dots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75%,
+  100% {
+    content: "...";
+  }
 }
 
 .empty-state {
@@ -966,6 +991,15 @@ a:focus-visible {
 }
 
 @media (max-width: 640px) {
+  .street-view-thumbnail {
+    width: 100%;
+    min-height: 126px;
+  }
+
+  .street-view-thumbnail iframe {
+    height: 126px;
+  }
+
   .nav,
   .form-footer {
     align-items: flex-start;
