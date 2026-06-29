@@ -22,7 +22,7 @@ python3 -m http.server 5174
 - Live driving map using Leaflet and OpenStreetMap tiles
 - Browser-side geocoding with Nominatim
 - Driving route geometry and directions from the public OSRM demo server
-- Suggested food and gas stops within 2 miles of route waypoints using OpenStreetMap via Overpass
+- Suggested food and gas stops near route waypoints using OpenStreetMap via Overpass
 - Active inclement-weather alert overlay from the National Weather Service
 - Mock supplemental route recommendations
 - Theme toggle with `localStorage` persistence
