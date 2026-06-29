@@ -2,7 +2,7 @@
 
 ## Travel Helper Application
 
-**Version:** 2.9
+**Version:** 2.10
 **Date:** June 29, 2026  
 **Status:** Draft, prototype in progress  
 
@@ -311,7 +311,8 @@ Prototype status:
 - Landing-page navigation buttons are displayed as a left-side action rail.
 - Route entry is shown only after the user selects the route info page.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services`.
+- Footer branding displays `Cajun Travel Services` with the current app version and UTC build
+  timestamp.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Final itinerary view remains future work.
@@ -517,6 +518,8 @@ Production note:
   up to five options of each when available.
 - Removed `Arrival at destination` and `Desired return home` from the trip entry form and renamed
   `Transportation` to `Mode of Travel`.
+- Added a footer build stamp showing app version `v2.10` and build timestamp
+  `2026-06-29 14:41 UTC`.
 
 ## 11. Glossary
 
@@ -556,3 +559,4 @@ Production note:
 | 2.7 | June 29, 2026 | Added capped route overview zoom and updated route options heading copy |
 | 2.8 | June 29, 2026 | Defaulted detailed turn-by-turn directions to a collapsed toggle |
 | 2.9 | June 29, 2026 | Added short-trip food/gas recommendations and simplified trip entry fields |
+| 2.10 | June 29, 2026 | Added footer app version and UTC build timestamp |
