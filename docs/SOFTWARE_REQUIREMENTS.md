@@ -312,6 +312,9 @@ Prototype status:
   when public OSM data is available.
 - Meal and fuel Overpass requests run independently with request timeouts so one slow lookup does not
   block the other from rendering.
+- Meal and fuel direct lookups batch all planned stops into one Overpass request per category before
+  running per-stop fallback searches.
+- Public Overpass mirrors are queried in parallel and the first successful response is used.
 - Meal and fuel lookups can fail over across multiple public Overpass mirrors before showing an
   unavailable state.
 - OpenStreetMap fuel stations without a public name, brand, or operator are displayed as `Fuel
@@ -666,6 +669,9 @@ Production note:
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.27`.
+- Sped up food and gas lookups by batching direct stop searches, racing Overpass mirrors in parallel,
+  simplifying restaurant queries, capping food retry attempts, caching repeated Overpass queries, and
+  deferring nearby-town lookups so they do not compete with recommendation requests.
 
 ## 11. Glossary
 
