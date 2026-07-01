@@ -36,8 +36,8 @@ integration.
 
 ## Publish
 
-GitHub Pages serves the static app from the `docs/` folder on `master`. Keep the root app files
-and their copies in `docs/` in sync before publishing.
+GitHub Pages deploys from the `docs/` folder through GitHub Actions on `master`. Keep the root app
+files and their copies in `docs/` in sync before publishing.
 
 ### Geoapify Places API (food and gas)
 
@@ -45,15 +45,16 @@ Food and gas lookups use the [Geoapify Places API](https://www.geoapify.com/plac
 (3,000 credits/day) for fast nearby results, with Overpass as fallback when no key is configured.
 
 1. Create a free API key at [Geoapify MyProjects](https://myprojects.geoapify.com/).
-2. Restrict the key to your GitHub Pages URL (for example, `https://jodybreaux.github.io/travel-helper/*`).
-3. Add the key to both `js/places-config.js` and `docs/js/places-config.js`:
+2. Restrict the key to:
+   - `https://jodybreaux.github.io/travel-helper/*`
+   - `http://localhost:*` (for local testing)
+3. Store the key as a repository secret:
 
-```javascript
-export const GEOAPIFY_API_KEY = "your-geoapify-api-key";
+```bash
+gh secret set GEOAPIFY_API_KEY
 ```
 
-4. Push to `master`.
+4. Push to `master`. The deploy workflow injects the key into the published `docs/js/places-config.js`
+   artifact without committing it to git.
 
-Optional: add `.github/workflows/deploy-pages.yml` and a `GEOAPIFY_API_KEY` repository secret so the
-key is injected at deploy time instead of being committed to git. Switch GitHub Pages to the
-**GitHub Actions** source after adding the workflow.
+For local development, copy `js/places-config.example.js` to `js/places-config.js` and add your key.

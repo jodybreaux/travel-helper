@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.30  
+**Version:** 2.31  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.30 |
+| Current version | 2.31 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -386,8 +386,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.30` and UTC build timestamp
-  `2026-07-01 20:49 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.31` and UTC build timestamp
+  `2026-07-01 20:50 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -466,7 +466,9 @@ Prototype note:
 - CORS policies shall be configured appropriately.
 
 Prototype status:
-- Geoapify API keys are injected at deploy time through GitHub Actions and are not committed to git.
+- Geoapify API keys are stored as GitHub repository secrets and injected at deploy time; they are not
+  committed to git.
+- Restrict Geoapify keys to the published GitHub Pages URL and localhost for local testing.
 - Overpass remains the fallback provider when Geoapify is unavailable or not configured.
 - External API data rendered into HTML is escaped where needed.
 - Production backend remains future work.
@@ -672,8 +674,8 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.30`.
-- Enabled Geoapify Places API key for live food and gas lookups on the published site.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.31`.
+- Moved the Geoapify API key to a GitHub Actions secret and enabled secure deploy-time injection.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -735,3 +737,4 @@ Production note:
 | 2.28 | July 1, 2026 | Sped up food and gas lookups with batched Overpass queries and parallel mirror failover |
 | 2.29 | July 1, 2026 | Added Geoapify Places as the primary food and gas provider with Overpass fallback |
 | 2.30 | July 1, 2026 | Enabled Geoapify API key for live food and gas lookups |
+| 2.31 | July 1, 2026 | Moved Geoapify key to GitHub secret with Actions deploy injection |
