@@ -4,20 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meals · Travel Helper</title>
-    <link rel="stylesheet" href="styles.css?v=2.36" />
+    <link rel="stylesheet" href="styles.css?v=2.37" />
   </head>
   <body data-current-page="meals">
     <header class="site-header">
+      <div class="site-utility-bar" aria-label="Quick actions">
+        <button type="button" class="near-me-trigger" id="nearMeButton" aria-label="Find food and gas near your current location">
+          <span class="near-me-trigger-text" id="nearMeButtonText">Food &amp; gas near me</span>
+          <span class="wait-cursor near-me-wait" id="nearMeWait" hidden aria-hidden="true"></span>
+        </button>
+        <p class="near-me-status" id="nearMeStatus" role="status" aria-live="polite"></p>
+      </div>
       <nav class="nav" aria-label="Primary navigation">
         <a class="brand" href="index.html" aria-label="Travel Helper home">
           <span class="brand-mark">TH</span>
           <span>Travel Helper</span>
         </a>
         <div class="nav-actions">
-          <button type="button" class="nav-link nav-near-me" id="nearMeButton" aria-label="Find food and gas near your current location">
-            Food &amp; gas near me
-            <span class="wait-cursor near-me-wait" id="nearMeWait" hidden aria-hidden="true"></span>
-          </button>
           <a class="nav-link" href="route-info.html">Plan a Trip</a>
           <a class="nav-link" href="routes.html">Routes</a>
           <a class="nav-link" href="meals.html">Meals</a>
@@ -28,7 +31,6 @@
         </div>
       </nav>
       <div class="near-me-bar" aria-label="Food and gas near your current location">
-        <p class="near-me-status" id="nearMeStatus" role="status" aria-live="polite"></p>
         <div class="near-me-results restaurant-list" id="nearMeResults" hidden></div>
       </div>
     </header>
@@ -49,9 +51,9 @@
     </main>
 
     <footer class="site-footer">
-      <p>Cajun Travel Services · v2.36 · Built 2026-07-01 22:45 UTC</p>
+      <p>Cajun Travel Services · v2.37 · Built 2026-07-01 23:10 UTC</p>
     </footer>
 
-    <script type="module" src="js/pages/meals.js?v=2.36"></script>
+    <script type="module" src="js/pages/meals.js?v=2.37"></script>
   </body>
 </html>

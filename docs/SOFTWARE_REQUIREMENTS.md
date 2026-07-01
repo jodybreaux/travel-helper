@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.36  
+**Version:** 2.37  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.36 |
+| Current version | 2.37 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -676,15 +676,14 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.36`.
-- Removed the gas-station display toggle; gas recommendations are always shown.
-- Moved `Food & gas near me` into the top navigation with a wait cursor during lookup.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.37`.
+- Moved near-me into a dedicated top utility bar with stronger loading feedback.
 - Fixed Geoapify fuel category list and Overpass per-stop fallback when batch lookup fails.
 - Meals and Gas pages now reload missing recommendations from the saved route.
 - Meals and Gas pages include a `Food & gas near me` action that uses browser geolocation to load up
   to 10 nearby food options and 3 nearby gas stations sorted by distance, with Street View thumbnails.
-- The `Food & gas near me` action lives in the top app navigation on every page and shows a wait
-  cursor while location and place lookups are in progress.
+- The `Food & gas near me` action lives in a dedicated top utility bar on every page and shows a wait
+  cursor plus loading label while location and place lookups are in progress.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -752,3 +751,4 @@ Production note:
 | 2.34 | July 1, 2026 | Fixed Geoapify fuel categories and recommendation reload on Meals/Gas pages |
 | 2.35 | July 1, 2026 | Added previous-routes dropdown and near-me food/gas lookup with thumbnails |
 | 2.36 | July 1, 2026 | Removed gas toggle, moved near-me to top nav, added wait cursor on lookup |
+| 2.37 | July 1, 2026 | Prominent near-me utility bar and clearer wait-cursor loading state |

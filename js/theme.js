@@ -1,4 +1,5 @@
 import { initNearMeLookup } from "./near-me.js";
+import { ensureSiteHeaderNearMe } from "./site-header.js";
 
 export function setTheme(theme) {
   const root = document.documentElement;
@@ -22,5 +23,6 @@ export function initTheme() {
     });
   }
 
+  ensureSiteHeaderNearMe();
   initNearMeLookup();
 }

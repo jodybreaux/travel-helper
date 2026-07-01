@@ -69,10 +69,64 @@ a {
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
   border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 25%);
   background: color-mix(in srgb, var(--bg), transparent 10%);
   backdrop-filter: blur(18px);
+}
+
+.site-utility-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.site-utility-bar .near-me-status {
+  margin: 0;
+  flex: 1 1 12rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.near-me-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.65rem;
+  padding: 0 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary), transparent 72%);
+}
+
+.near-me-trigger:hover,
+.near-me-trigger:focus-visible {
+  filter: brightness(1.05);
+}
+
+.near-me-trigger.is-loading,
+.near-me-trigger:disabled {
+  cursor: wait;
+  opacity: 0.95;
+}
+
+.near-me-trigger .near-me-wait {
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
 }
 
 .near-me-bar {
@@ -81,38 +135,20 @@ a {
   padding: 0 1.25rem 0.85rem;
 }
 
-.near-me-bar .near-me-status {
-  margin: 0 0 0.65rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
 .near-me-bar .near-me-results {
   display: grid;
   gap: 1rem;
 }
 
-.nav-near-me {
-  border: 0;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
-.nav-near-me:disabled {
-  cursor: wait;
-}
-
-.near-me-wait {
-  margin-left: 0.35rem;
-}
-
+html.is-waiting,
+html.is-waiting body,
 body.is-waiting,
 body.is-waiting * {
   cursor: wait !important;
 }
 
-body.is-waiting .wait-cursor {
+html.is-waiting .near-me-trigger,
+body.is-waiting .near-me-trigger {
   cursor: wait !important;
 }
 
@@ -1091,6 +1127,19 @@ a:focus-visible {
     flex-wrap: wrap;
     gap: 0.55rem;
     font-size: 0.9rem;
+  }
+
+  .site-utility-bar {
+    padding: 0.65rem 1rem;
+  }
+
+  .near-me-trigger {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .site-utility-bar .near-me-status {
+    width: 100%;
   }
 
   .nav-link,

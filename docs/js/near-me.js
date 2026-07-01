@@ -6,6 +6,8 @@ import {
 import { fetchFoodNearLocation, fetchFuelNearLocation } from "./places-api.js";
 import { escapeHtml, renderPlaceStopCard } from "./place-cards.js";
 
+import { setNearMeButtonLoading } from "./site-header.js";
+
 const STORAGE_KEY = "travel-helper-near-me";
 
 let nearMeState = loadNearMeState();
@@ -140,20 +142,11 @@ function setNearMeStatus(statusElement, message) {
   }
 }
 
-function setNearMeWaiting(isWaiting, { button, waitElement } = {}) {
-  document.body.classList.toggle("is-waiting", isWaiting);
-
-  if (button) {
-    button.disabled = isWaiting;
-    button.setAttribute("aria-busy", isWaiting ? "true" : "false");
-  }
-
-  if (waitElement) {
-    waitElement.hidden = !isWaiting;
-  }
+function setNearMeWaiting(isWaiting) {
+  setNearMeButtonLoading(isWaiting);
 }
 
-async function searchFoodAndGasNearMe({ button, waitElement, statusElement, resultsElement }) {
+async function searchFoodAndGasNearMe({ statusElement, resultsElement }) {
   if (nearMeState.loading) return;
 
   nearMeState = {
@@ -163,7 +156,7 @@ async function searchFoodAndGasNearMe({ button, waitElement, statusElement, resu
   persistNearMeState();
   renderNearMeResults(resultsElement);
   setNearMeStatus(statusElement, "Requesting your location...");
-  setNearMeWaiting(true, { button, waitElement });
+  setNearMeWaiting(true);
 
   try {
     const location = await getCurrentPosition();
@@ -197,25 +190,28 @@ async function searchFoodAndGasNearMe({ button, waitElement, statusElement, resu
     persistNearMeState();
     setNearMeStatus(statusElement, nearMeState.error);
   } finally {
-    setNearMeWaiting(false, { button, waitElement });
+    setNearMeWaiting(false);
     renderNearMeResults(resultsElement);
   }
 }
 
 export function initNearMeLookup({
   button = "#nearMeButton",
-  wait = "#nearMeWait",
   status = "#nearMeStatus",
   results = "#nearMeResults",
 } = {}) {
   const buttonElement = typeof button === "string" ? document.querySelector(button) : button;
-  const waitElement = typeof wait === "string" ? document.querySelector(wait) : wait;
   const statusElement = typeof status === "string" ? document.querySelector(status) : status;
   const resultsElement = typeof results === "string" ? document.querySelector(results) : results;
 
   if (!buttonElement || !resultsElement) {
     return;
   }
+
+  if (buttonElement.dataset.nearMeBound === "true") {
+    return;
+  }
+  buttonElement.dataset.nearMeBound = "true";
 
   renderNearMeResults(resultsElement);
   if (!nearMeState.loading && nearMeState.food.length + nearMeState.fuel.length > 0) {
@@ -227,8 +223,6 @@ export function initNearMeLookup({
 
   buttonElement.addEventListener("click", () => {
     searchFoodAndGasNearMe({
-      button: buttonElement,
-      waitElement,
       statusElement,
       resultsElement,
     });
