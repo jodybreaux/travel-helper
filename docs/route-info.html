@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Route Info · Travel Helper</title>
+    <link rel="stylesheet" href="styles.css?v=2.27-weather-fix" />
+  </head>
+  <body data-current-page="route-info">
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="index.html" aria-label="Travel Helper home">
+          <span class="brand-mark">TH</span>
+          <span>Travel Helper</span>
+        </a>
+        <div class="nav-actions">
+          <a class="nav-link" href="route-info.html">Plan a Trip</a>
+          <a class="nav-link" href="routes.html">Routes</a>
+          <a class="nav-link" href="meals.html">Meals</a>
+          <a class="nav-link" href="gas.html">Gas</a>
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+            <span id="themeLabel">Dark</span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="planner-section" id="planner" aria-labelledby="plannerTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Trip inputs</p>
+          <h2 id="plannerTitle">Tell us where and when you are going.</h2>
+          <p>
+            This prototype uses mock route data, but the flow mirrors the planned production
+            experience.
+          </p>
+        </div>
+
+        <form class="planner-card" id="tripForm">
+          <div class="form-grid">
+            <div class="form-columns">
+              <fieldset class="form-column">
+                <legend>Departure information</legend>
+                <label>
+                  Origin city or address
+                  <input
+                    id="origin"
+                    name="origin"
+                    type="text"
+                    placeholder="1105 San Augustine Dr, 78733"
+                    list="originSuggestions"
+                    autocomplete="street-address"
+                    required
+                  />
+                  <datalist id="originSuggestions"></datalist>
+                </label>
+                <label>
+                  Departure from origin
+                  <input id="departDate" name="departDate" type="date" required />
+                </label>
+                <label>
+                  Departure time
+                  <input id="departTime" name="departTime" type="time" value="08:00" required />
+                </label>
+              </fieldset>
+              <fieldset class="form-column">
+                <legend>Destination information</legend>
+                <label>
+                  Final destination
+                  <input
+                    id="destination"
+                    name="destination"
+                    type="text"
+                    placeholder="13601 Golden Wave Loop, 78738"
+                    list="destinationSuggestions"
+                    autocomplete="street-address"
+                    required
+                  />
+                  <datalist id="destinationSuggestions"></datalist>
+                </label>
+                <label>
+                  Leave destination
+                  <input id="returnDate" name="returnDate" type="date" required />
+                </label>
+              </fieldset>
+            </div>
+            <div class="form-secondary-row">
+              <label>
+                Mode of Travel
+                <select id="mode" name="mode">
+                  <option>Car</option>
+                  <option>Train</option>
+                  <option>Bus</option>
+                  <option>Airplane</option>
+                </select>
+              </label>
+              <label>
+                Time zone
+                <select id="timezone" name="timezone">
+                  <option value="America/Chicago">Central Time</option>
+                  <option value="America/New_York">Eastern Time</option>
+                  <option value="America/Denver">Mountain Time</option>
+                  <option value="America/Los_Angeles">Pacific Time</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="preference-row" aria-label="Trip preferences">
+            <label class="check-option">
+              <input id="gasToggle" type="checkbox" checked />
+              Show gas stations
+            </label>
+            <label class="check-option">
+              <input id="restaurantToggle" type="checkbox" checked />
+              Suggest restaurants
+            </label>
+            <label class="preference-select">
+              Date format
+              <select id="dateFormat">
+                <option value="en-US">US</option>
+                <option value="en-GB">International</option>
+                <option value="de-DE">Germany</option>
+                <option value="ja-JP">Japan</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-footer">
+            <p class="form-message" id="formMessage" role="status">
+              Fill out the form to create route recommendations.
+            </p>
+            <button class="button button-primary" type="submit">Create route</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Cajun Travel Services · v2.26 · Built 2026-07-01 00:00 UTC</p>
+    </footer>
+
+    <script type="module" src="js/pages/route-info.js?v=2.27-weather-fix"></script>
+  </body>
+</html>

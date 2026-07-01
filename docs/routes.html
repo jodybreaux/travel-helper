@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Routes · Travel Helper</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="styles.css?v=2.27-weather-fix" />
+  </head>
+  <body data-current-page="routes">
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="index.html" aria-label="Travel Helper home">
+          <span class="brand-mark">TH</span>
+          <span>Travel Helper</span>
+        </a>
+        <div class="nav-actions">
+          <a class="nav-link" href="route-info.html">Plan a Trip</a>
+          <a class="nav-link" href="routes.html">Routes</a>
+          <a class="nav-link" href="meals.html">Meals</a>
+          <a class="nav-link" href="gas.html">Gas</a>
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+            <span id="themeLabel">Dark</span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="routes-section" id="routes" aria-labelledby="routesTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Recommended options</p>
+          <h2 id="routesTitle">Trip Options</h2>
+        </div>
+
+        <div class="route-grid" id="routeGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="map-section" aria-labelledby="mapTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Driving directions</p>
+          <h2 id="mapTitle">Live route map and turn-by-turn preview.</h2>
+          <p id="mapStatus" role="status">Loading the default driving route.</p>
+        </div>
+
+        <div class="map-layout">
+          <div
+            class="driving-map"
+            id="drivingMap"
+            role="application"
+            aria-label="Interactive driving route map"
+          ></div>
+          <aside class="directions-card" aria-label="Driving directions">
+            <div class="route-summary" id="routeSummary">
+              Enter a trip to calculate driving directions.
+            </div>
+            <button
+              class="directions-toggle"
+              id="directionsToggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="directionsList"
+              hidden
+            >
+              Show detailed turns
+            </button>
+            <ol class="directions-list" id="directionsList" hidden></ol>
+          </aside>
+        </div>
+      </section>
+
+      <section class="details-layout" aria-label="Weather details">
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">W</span>
+            <div>
+              <h3>Weather Along Route</h3>
+              <p>Active inclement-weather alerts for the mapped route.</p>
+            </div>
+          </div>
+          <ul class="detail-list" id="weatherList">
+            <li>Calculate a car route to load active weather alerts.</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Cajun Travel Services · v2.26 · Built 2026-07-01 00:00 UTC</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="js/pages/routes.js?v=2.27-weather-fix"></script>
+  </body>
+</html>

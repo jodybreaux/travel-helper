@@ -1,71 +1,63 @@
-const routes = [
-  {
-    type: "Fastest",
-    title: "Quickest Route",
-    score: "Best time",
-    time: "7h 12m",
-    distance: "472 mi",
-    summary: "Prioritizes major highways and avoids known construction near metro areas.",
-    highlights: ["Low delay", "2 weather checks", "Food + gas stops"],
-  },
-  {
-    type: "Scenic",
-    title: "River & Landmarks",
-    score: "Most POIs",
-    time: "8h 05m",
-    distance: "498 mi",
-    summary: "Adds landmark-rich segments and a more relaxed suggested food stop near a downtown district.",
-    highlights: ["6 attractions", "Food + gas stops", "Photo stops"],
-  },
-  {
-    type: "Balanced",
-    title: "Smart Alternate",
-    score: "Recommended",
-    time: "7h 34m",
-    distance: "486 mi",
-    summary: "Balances arrival time, traffic exposure, weather conditions, and attractions.",
-    highlights: ["4 attractions", "Avoids delays", "Food + gas stops"],
-  },
-];
+import {
+  ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS,
+  ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES,
+  TRIP_STOP_INTERVAL_SECONDS,
+  FOOD_STOP_DURATION_SECONDS,
+  FORWARD_RECOMMENDATION_INTERVAL_SECONDS,
+  FORWARD_RECOMMENDATION_LOOKAHEAD_SECONDS,
+  FORWARD_RECOMMENDATION_RETRY_POINTS,
+  FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES,
+  OVERPASS_REQUEST_TIMEOUT_MS,
+  MAX_RESTAURANTS_PER_STOP,
+  MAX_FUEL_STATIONS_PER_STOP,
+  SHORT_TRIP_RECOMMENDATION_LIMIT,
+  ROUTE_OPTION_COUNT,
+  MAX_SYNTHETIC_ROUTE_ATTEMPTS,
+  ROUTE_OVERVIEW_MAX_ZOOM,
+  ROUTE_OVERVIEW_PADDING,
+  ROUTE_TEMPLATES,
+  DEFAULT_ORIGIN,
+  DEFAULT_DESTINATION,
+  CENTRAL_TEXAS_VIEWBOX,
+} from "./constants.js";
+import {
+  getState,
+  patchState,
+  saveFormFromControls,
+  loadFormIntoForm,
+  getTimezone,
+  isRestaurantEnabled,
+  isGasEnabled,
+} from "./trip-store.js";
+import { ui } from "./ui.js";
+import {
+  fetchWeatherAlertsForRoute,
+  getWeatherSeverityColor,
+} from "./weather.js";
 
-const ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS = 3219;
-const ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES = 2;
-const TRIP_STOP_INTERVAL_SECONDS = 4 * 60 * 60;
-const FOOD_STOP_DURATION_SECONDS = 60 * 60;
-const FORWARD_RECOMMENDATION_INTERVAL_SECONDS = 15 * 60;
-const FORWARD_RECOMMENDATION_LOOKAHEAD_SECONDS = 2 * 60 * 60;
-const FORWARD_RECOMMENDATION_RETRY_POINTS = 2;
-const FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES = 50;
-const OVERPASS_REQUEST_TIMEOUT_MS = 18000;
-const MAX_RESTAURANTS_PER_STOP = 3;
-const MAX_FUEL_STATIONS_PER_STOP = 3;
-const SHORT_TRIP_RECOMMENDATION_LIMIT = 5;
-const ROUTE_OPTION_COUNT = routes.length;
-const MAX_SYNTHETIC_ROUTE_ATTEMPTS = 12;
-const ROUTE_OVERVIEW_MAX_ZOOM = 11;
-const ROUTE_OVERVIEW_PADDING = [48, 48];
+let routes = [];
 
-const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
-const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
-const CENTRAL_TEXAS_VIEWBOX = "-98.25,30.75,-97.25,30.0";
+function getTripForm() {
+  return ui.tripForm;
+}
 
-const root = document.documentElement;
-const themeToggle = document.querySelector("#themeToggle");
-const themeLabel = document.querySelector("#themeLabel");
-const tripForm = document.querySelector("#tripForm");
-const formMessage = document.querySelector("#formMessage");
-const pageButtons = document.querySelectorAll("[data-page-target]");
-const appPages = document.querySelectorAll("[data-page]");
-const routeGrid = document.querySelector("#routeGrid");
-const gasToggle = document.querySelector("#gasToggle");
-const restaurantToggle = document.querySelector("#restaurantToggle");
-const restaurantList = document.querySelector("#restaurantList");
-const gasPanel = document.querySelector("#gasPanel");
-const mapStatus = document.querySelector("#mapStatus");
-const routeSummary = document.querySelector("#routeSummary");
-const directionsToggle = document.querySelector("#directionsToggle");
-const directionsList = document.querySelector("#directionsList");
-const weatherList = document.querySelector("#weatherList");
+function getGasToggle() {
+  return getTripForm()?.querySelector("#gasToggle");
+}
+
+function getRestaurantToggle() {
+  return getTripForm()?.querySelector("#restaurantToggle");
+}
+
+function gasToggleChecked() {
+  const toggle = getGasToggle();
+  return toggle ? toggle.checked : isGasEnabled();
+}
+
+function restaurantToggleChecked() {
+  const toggle = getRestaurantToggle();
+  return toggle ? toggle.checked : isRestaurantEnabled();
+}
 
 let map;
 let routeLayer;
@@ -90,10 +82,85 @@ let recommendationLoading = {
   townStopIds: new Set(),
 };
 
-function setTheme(theme) {
-  root.dataset.theme = theme;
-  localStorage.setItem("travel-helper-theme", theme);
-  themeLabel.textContent = theme === "dark" ? "Light" : "Dark";
+function serializeRecommendationLoading(loadingState) {
+  return {
+    restaurants: loadingState.restaurants,
+    fuel: loadingState.fuel,
+    restaurantStopIds: [...loadingState.restaurantStopIds],
+    fuelStopIds: [...loadingState.fuelStopIds],
+    townStopIds: [...loadingState.townStopIds],
+  };
+}
+
+function reviveRecommendationLoading(raw = {}) {
+  return {
+    restaurants: Boolean(raw.restaurants),
+    fuel: Boolean(raw.fuel),
+    restaurantStopIds: new Set(raw.restaurantStopIds || []),
+    fuelStopIds: new Set(raw.fuelStopIds || []),
+    townStopIds: new Set(raw.townStopIds || []),
+  };
+}
+
+function serializeTripStop(stop) {
+  return {
+    ...stop,
+    passTime: stop.passTime instanceof Date ? stop.passTime.toISOString() : stop.passTime,
+  };
+}
+
+function reviveTripStop(stop) {
+  return {
+    ...stop,
+    passTime: stop.passTime ? new Date(stop.passTime) : null,
+  };
+}
+
+function serializeRecommendation(item) {
+  return {
+    ...item,
+    passTime: item.passTime instanceof Date ? item.passTime.toISOString() : item.passTime,
+  };
+}
+
+function reviveRecommendation(item) {
+  return {
+    ...item,
+    passTime: item.passTime ? new Date(item.passTime) : null,
+  };
+}
+
+export function persistTripState() {
+  patchState({
+    routeTemplates: routes.map((route) => ({ ...route })),
+    activeRouteOptions,
+    activeOrigin,
+    activeDestination,
+    activeDepartureAt: activeDepartureAt ? activeDepartureAt.toISOString() : null,
+    selectedRouteIndex,
+    previewRequestId,
+    activeRestaurants: activeRestaurants.map(serializeRecommendation),
+    activeFuelStations: activeFuelStations.map(serializeRecommendation),
+    activeTripStops: activeTripStops.map(serializeTripStop),
+    recommendationLoading: serializeRecommendationLoading(recommendationLoading),
+  });
+}
+
+export function hydrateTripState() {
+  const state = getState();
+  routes = state.routeTemplates?.length
+    ? state.routeTemplates.map((route) => ({ ...route }))
+    : ROUTE_TEMPLATES.map((route) => ({ ...route }));
+  activeRouteOptions = state.activeRouteOptions || [];
+  activeOrigin = state.activeOrigin || null;
+  activeDestination = state.activeDestination || null;
+  activeDepartureAt = state.activeDepartureAt ? new Date(state.activeDepartureAt) : null;
+  selectedRouteIndex = state.selectedRouteIndex;
+  previewRequestId = state.previewRequestId || 0;
+  activeRestaurants = (state.activeRestaurants || []).map(reviveRecommendation);
+  activeFuelStations = (state.activeFuelStations || []).map(reviveRecommendation);
+  activeTripStops = (state.activeTripStops || []).map(reviveTripStop);
+  recommendationLoading = reviveRecommendationLoading(state.recommendationLoading);
 }
 
 function getToday() {
@@ -133,27 +200,6 @@ function setDefaultDates() {
 function setDefaultTripValues() {
   document.querySelector("#origin").value = DEFAULT_ORIGIN;
   document.querySelector("#destination").value = DEFAULT_DESTINATION;
-}
-
-function showPage(pageName, { scroll = true } = {}) {
-  appPages.forEach((page) => {
-    page.classList.toggle("active", page.dataset.page === pageName);
-  });
-
-  pageButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.pageTarget === pageName);
-  });
-
-  if (pageName === "routes" && map) {
-    setTimeout(() => map.invalidateSize(), 0);
-  }
-
-  if (scroll) {
-    document.querySelector(`[data-page="${pageName}"]`)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
 }
 
 function syncDateSequence(changedId = "") {
@@ -204,7 +250,9 @@ function getBestGeocodeResult(results, originalQuery) {
 
 function initMap() {
   if (!window.L) {
-    mapStatus.textContent = "Map library did not load. Check your internet connection and refresh.";
+    if (ui.mapStatus) {
+      ui.mapStatus.textContent = "Map library did not load. Check your internet connection and refresh.";
+    }
     return;
   }
 
@@ -233,7 +281,7 @@ function formatDuration(seconds) {
 }
 
 function formatMealTime(date) {
-  const timezone = document.querySelector("#timezone").value;
+  const timezone = getTimezone();
 
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
@@ -458,24 +506,27 @@ function getStepInstruction(step) {
 }
 
 function setDirectionsExpanded(isExpanded) {
-  directionsToggle.hidden = directionsList.children.length === 0;
-  directionsToggle.textContent = isExpanded ? "Hide detailed turns" : "Show detailed turns";
-  directionsToggle.setAttribute("aria-expanded", String(isExpanded));
-  directionsList.hidden = !isExpanded;
+  if (!ui.directionsToggle || !ui.directionsList) return;
+  ui.directionsToggle.hidden = ui.directionsList.children.length === 0;
+  ui.directionsToggle.textContent = isExpanded ? "Hide detailed turns" : "Show detailed turns";
+  ui.directionsToggle.setAttribute("aria-expanded", String(isExpanded));
+  ui.directionsList.hidden = !isExpanded;
 }
 
 function clearDirections() {
-  directionsList.innerHTML = "";
+  if (!ui.directionsList) return;
+  ui.directionsList.innerHTML = "";
   setDirectionsExpanded(false);
 }
 
 function renderDirections(route) {
+  if (!ui.directionsList) return;
   clearDirections();
 
   route.legs.flatMap((leg) => leg.steps).forEach((step) => {
     const item = document.createElement("li");
     item.textContent = `${getStepInstruction(step)} · ${formatDistance(step.distance)} · ${formatDuration(step.duration)}`;
-    directionsList.appendChild(item);
+    ui.directionsList.appendChild(item);
   });
 
   setDirectionsExpanded(false);
@@ -545,7 +596,7 @@ async function fetchOverpassData(query, errorMessage) {
 }
 
 function getSelectedTimezone() {
-  return document.querySelector("#timezone").value;
+  return getTimezone();
 }
 
 function getHourOfDay(date) {
@@ -833,8 +884,8 @@ function getMissingRecommendationStopIds(tripStops, items) {
 }
 
 function getDepartureDateTime(formData) {
-  const date = formData.get("departDate") || document.querySelector("#departDate").value;
-  const time = formData.get("departTime") || document.querySelector("#departTime").value || "08:00";
+  const date = formData.get("departDate") || ui.tripForm?.elements.departDate?.value || getState().form.departDate;
+  const time = formData.get("departTime") || ui.tripForm?.elements.departTime?.value || getState().form.departTime || "08:00";
 
   return new Date(`${date}T${time}`);
 }
@@ -1184,7 +1235,7 @@ function drawRestaurantMarkers(restaurants) {
 
   restaurantMarkers.clearLayers();
 
-  if (!restaurantToggle.checked) return;
+  if (!restaurantToggleChecked()) return;
 
   restaurants.forEach((restaurant) => {
     L.marker([restaurant.lat, restaurant.lon])
@@ -1193,27 +1244,15 @@ function drawRestaurantMarkers(restaurants) {
   });
 }
 
-function getWeatherSeverityColor(severity = "") {
-  const colors = {
-    Extreme: "#7f1d1d",
-    Severe: "#dc2626",
-    Moderate: "#f59e0b",
-    Minor: "#facc15",
-    Unknown: "#64748b",
-  };
-
-  return colors[severity] || colors.Unknown;
-}
-
 function renderWeatherAlerts(alerts) {
-  if (!weatherList) return;
+  if (!ui.weatherList) return;
 
   if (!alerts.length) {
-    weatherList.innerHTML = "<li><strong>No active NWS alerts:</strong> No inclement-weather alerts found within the mapped route area.</li>";
+    ui.weatherList.innerHTML = "<li><strong>No active NWS alerts:</strong> No inclement-weather alerts found within the mapped route area.</li>";
     return;
   }
 
-  weatherList.innerHTML = alerts
+  ui.weatherList.innerHTML = alerts
     .slice(0, 5)
     .map((alert) => {
       const properties = alert.properties || {};
@@ -1252,48 +1291,24 @@ function drawWeatherAlertOverlay(alerts) {
   });
 }
 
-async function fetchWeatherAlertsAtPoint([lon, lat]) {
-  const url = new URL("https://api.weather.gov/alerts/active");
-  url.searchParams.set("status", "actual");
-  url.searchParams.set("message_type", "alert");
-  url.searchParams.set("point", `${lat.toFixed(4)},${lon.toFixed(4)}`);
-
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/geo+json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Weather alerts are unavailable right now.");
-  }
-
-  const data = await response.json();
-  return data.features || [];
-}
-
 async function loadWeatherAlerts(route, requestId = previewRequestId) {
   if (!route) return;
 
-  weatherList.innerHTML = "<li>Checking for active inclement-weather alerts along the route...</li>";
+  if (ui.weatherList) {
+    ui.weatherList.innerHTML = "<li>Checking for active inclement-weather alerts along the route...</li>";
+  }
   weatherAlertLayer?.clearLayers();
 
   try {
-    const alertResults = await Promise.all(getRestaurantSearchPoints(route).map(fetchWeatherAlertsAtPoint));
-    const alertsById = new Map();
-
-    alertResults.flat().forEach((alert) => {
-      const id = alert.id || alert.properties?.id || alert.properties?.headline;
-      if (id) alertsById.set(id, alert);
-    });
-
-    const alerts = [...alertsById.values()];
+    const alerts = await fetchWeatherAlertsForRoute(route);
     if (requestId !== previewRequestId) return;
     drawWeatherAlertOverlay(alerts);
     renderWeatherAlerts(alerts);
   } catch (error) {
     if (requestId !== previewRequestId) return;
-    weatherList.innerHTML = `<li><strong>Weather overlay unavailable:</strong> ${escapeHtml(error.message)}</li>`;
+    if (ui.weatherList) {
+      ui.weatherList.innerHTML = `<li><strong>Weather overlay unavailable:</strong> ${escapeHtml(error.message)}</li>`;
+    }
   }
 }
 
@@ -1358,12 +1373,19 @@ function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
   clearDirections();
   drawRestaurantMarkers([]);
   weatherAlertLayer?.clearLayers();
-  routeSummary.textContent = "Creating a fresh route...";
-  mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
-  routeGrid.innerHTML = `<div class="empty-state">Creating a fresh route from ${escapeHtml(originQuery)} to ${escapeHtml(destinationQuery)}...</div>`;
-  restaurantList.innerHTML = `<div class="empty-state">Food recommendations will load after the new route is ready.</div>`;
-  gasPanel.className = "empty-state";
-  gasPanel.innerHTML = "Gas recommendations will load after the new route is ready.";
+  if (ui.routeSummary) ui.routeSummary.textContent = "Creating a fresh route...";
+  if (ui.mapStatus) ui.mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
+  if (ui.routeGrid) {
+    ui.routeGrid.innerHTML = `<div class="empty-state">Creating a fresh route from ${escapeHtml(originQuery)} to ${escapeHtml(destinationQuery)}...</div>`;
+  }
+  if (ui.restaurantList) {
+    ui.restaurantList.innerHTML = `<div class="empty-state">Food recommendations will load after the new route is ready.</div>`;
+  }
+  if (ui.gasPanel) {
+    ui.gasPanel.className = "empty-state";
+    ui.gasPanel.innerHTML = "Gas recommendations will load after the new route is ready.";
+  }
+  persistTripState();
 }
 
 function loadTripStopTownNames(tripStops, requestId) {
@@ -1385,40 +1407,49 @@ function loadTripStopTownNames(tripStops, requestId) {
   });
 }
 
-function displayRouteSelection(index, requestId = previewRequestId) {
+function displayRouteSelection(index, requestId = previewRequestId, { loadRecommendations = true } = {}) {
   const route = activeRouteOptions[index];
   if (!route || !activeOrigin || !activeDestination) return;
-  const departureAt = activeDepartureAt || getDepartureDateTime(new FormData(tripForm));
+  const departureAt = activeDepartureAt || getDepartureDateTime(new FormData(ui.tripForm));
 
   selectedRouteIndex = index;
   renderRoutes(index);
   drawRoute(route, activeOrigin, activeDestination);
   renderDirections(route);
   loadWeatherAlerts(route, requestId);
-  routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
+  if (ui.routeSummary) {
+    ui.routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
+  }
 
   activeRestaurants = [];
   activeFuelStations = [];
   activeTripStops = getTripRecommendationStops(route, departureAt);
   recommendationLoading = {
-    restaurants: restaurantToggle.checked && activeTripStops.length > 0,
-    fuel: gasToggle.checked && activeTripStops.length > 0,
-    restaurantStopIds: new Set(restaurantToggle.checked ? activeTripStops.map((tripStop) => tripStop.id) : []),
-    fuelStopIds: new Set(gasToggle.checked ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    restaurants: loadRecommendations && restaurantToggleChecked() && activeTripStops.length > 0,
+    fuel: loadRecommendations && gasToggleChecked() && activeTripStops.length > 0,
+    restaurantStopIds: new Set(loadRecommendations && restaurantToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    fuelStopIds: new Set(loadRecommendations && gasToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
     townStopIds: new Set(activeTripStops.map((tripStop) => tripStop.id)),
   };
   drawRestaurantMarkers([]);
   renderRestaurants();
   renderGasStations();
+  persistTripState();
+
+  if (!loadRecommendations) {
+    return;
+  }
+
   loadTripStopTownNames(activeTripStops, requestId);
 
-  if (restaurantToggle.checked) {
+  if (restaurantToggleChecked()) {
     fetchRestaurantsAlongRoute(route, departureAt, (restaurants, stopId, isComplete) => {
       if (requestId !== previewRequestId) return;
       activeRestaurants = sortRestaurants(mergeRecommendations(activeRestaurants, restaurants));
       if (isComplete) recommendationLoading.restaurantStopIds.delete(stopId);
       recommendationLoading.restaurants = recommendationLoading.restaurantStopIds.size > 0;
       renderRestaurants();
+      persistTripState();
     })
       .then((restaurants) => {
         if (requestId !== previewRequestId) return;
@@ -1426,23 +1457,28 @@ function displayRouteSelection(index, requestId = previewRequestId) {
         recommendationLoading.restaurants = false;
         recommendationLoading.restaurantStopIds.clear();
         renderRestaurants();
+        persistTripState();
       })
       .catch((restaurantError) => {
         if (requestId !== previewRequestId) return;
         recommendationLoading.restaurants = false;
         recommendationLoading.restaurantStopIds.clear();
-        restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
+        if (ui.restaurantList) {
+          ui.restaurantList.innerHTML = `<div class="empty-state">${escapeHtml(restaurantError.message)}</div>`;
+        }
+        persistTripState();
       });
   }
 
-  if (gasToggle.checked) {
+  if (gasToggleChecked()) {
     fetchFuelStationsAlongRoute(route, departureAt, (stations, stopId, isComplete) => {
       if (requestId !== previewRequestId) return;
       activeFuelStations = sortFuelStations(mergeRecommendations(activeFuelStations, stations));
       if (isComplete) recommendationLoading.fuelStopIds.delete(stopId);
       recommendationLoading.fuel = recommendationLoading.fuelStopIds.size > 0;
       renderGasStations();
-      if (restaurantToggle.checked) renderRestaurants();
+      if (restaurantToggleChecked()) renderRestaurants();
+      persistTripState();
     })
       .then((stations) => {
         if (requestId !== previewRequestId) return;
@@ -1450,23 +1486,29 @@ function displayRouteSelection(index, requestId = previewRequestId) {
         recommendationLoading.fuel = false;
         recommendationLoading.fuelStopIds.clear();
         renderGasStations();
-        if (restaurantToggle.checked) renderRestaurants();
+        if (restaurantToggleChecked()) renderRestaurants();
       })
       .catch((fuelError) => {
         if (requestId !== previewRequestId) return;
         recommendationLoading.fuel = false;
         recommendationLoading.fuelStopIds.clear();
-        gasPanel.className = "empty-state";
-        gasPanel.innerHTML = escapeHtml(fuelError.message);
-        if (restaurantToggle.checked) renderRestaurants();
+        ui.gasPanel.className = "empty-state";
+        ui.gasPanel.innerHTML = escapeHtml(fuelError.message);
+        if (restaurantToggleChecked()) renderRestaurants();
       });
   }
 }
 
-async function loadDrivingDirections(originQuery, destinationQuery, departureAt = getDepartureDateTime(new FormData(tripForm)), requestId = previewRequestId) {
-  if (!map) return;
-
-  mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
+async function loadDrivingDirections(
+  originQuery,
+  destinationQuery,
+  departureAt = getDepartureDateTime(new FormData(ui.tripForm)),
+  requestId = previewRequestId,
+  { loadRecommendations = true } = {},
+) {
+  if (ui.mapStatus) {
+    ui.mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
+  }
 
   try {
     const [origin, destination] = await Promise.all([
@@ -1476,17 +1518,17 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     const routeOptions = await fetchDrivingRoute(origin, destination);
     if (requestId !== previewRequestId) return;
 
-    routeSummary.textContent = "Calculating route...";
+    if (ui.routeSummary) ui.routeSummary.textContent = "Calculating route...";
     clearDirections();
     activeRestaurants = [];
     activeFuelStations = [];
     activeTripStops = [];
-    if (restaurantToggle.checked) {
-      restaurantList.innerHTML = `<div class="empty-state">Checking the route for food recommendations...</div>`;
+    if (loadRecommendations && restaurantToggleChecked() && ui.restaurantList) {
+      ui.restaurantList.innerHTML = `<div class="empty-state">Checking the route for food recommendations...</div>`;
     }
-    if (gasToggle.checked) {
-      gasPanel.className = "empty-state";
-      gasPanel.innerHTML = "Checking the route for gas recommendations...";
+    if (loadRecommendations && gasToggleChecked() && ui.gasPanel) {
+      ui.gasPanel.className = "empty-state";
+      ui.gasPanel.innerHTML = "Checking the route for gas recommendations...";
     }
     drawRestaurantMarkers([]);
 
@@ -1496,25 +1538,32 @@ async function loadDrivingDirections(originQuery, destinationQuery, departureAt 
     activeRouteOptions = routeOptions.slice(0, routes.length);
     updateRouteCardStats(activeRouteOptions);
 
-    mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
-    displayRouteSelection(0, requestId);
+    if (ui.mapStatus) {
+      ui.mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
+    }
+    displayRouteSelection(0, requestId, { loadRecommendations });
+    persistTripState();
   } catch (error) {
     if (requestId !== previewRequestId) return;
-    mapStatus.textContent = error.message;
-    formMessage.textContent = "Route preview paused until both locations can be found.";
-    routeSummary.textContent = activeRouteOptions.length
-      ? "Showing the previous route. Try a more specific city, state, or street address."
-      : "Try a more specific city, state, or street address.";
+    if (ui.mapStatus) ui.mapStatus.textContent = error.message;
+    if (ui.formMessage) ui.formMessage.textContent = "Route preview paused until both locations can be found.";
+    if (ui.routeSummary) {
+      ui.routeSummary.textContent = activeRouteOptions.length
+        ? "Showing the previous route. Try a more specific city, state, or street address."
+        : "Try a more specific city, state, or street address.";
+    }
   }
 }
 
 function renderRoutes(selectedIndex = selectedRouteIndex) {
+  if (!ui.routeGrid) return;
+
   const availableRoutes = activeRouteOptions.length
     ? routes.filter((_, index) => activeRouteOptions[index])
     : routes;
   const routesToRender = selectedIndex == null ? availableRoutes : [routes[selectedIndex]];
 
-  routeGrid.innerHTML = routesToRender
+  ui.routeGrid.innerHTML = routesToRender
     .map(
       (route) => {
         const index = routes.indexOf(route);
@@ -1554,24 +1603,28 @@ function renderRoutes(selectedIndex = selectedRouteIndex) {
     .join("");
 
   if (selectedIndex != null) {
-    routeGrid.insertAdjacentHTML(
+    ui.routeGrid.insertAdjacentHTML(
       "beforeend",
       `<a class="route-link" href="#routes" data-show-routes>Show all route options</a>`,
     );
   }
 
-  routeGrid.querySelectorAll("[data-route]").forEach((button) => {
+  ui.  ui.routeGrid.querySelectorAll("[data-route]").forEach((button) => {
     button.addEventListener("click", () => {
       displayRouteSelection(Number(button.dataset.route));
-      formMessage.textContent = `${routes[selectedRouteIndex].title} selected for detailed planning.`;
+      if (ui.formMessage) {
+        ui.formMessage.textContent = `${routes[selectedRouteIndex].title} selected for detailed planning.`;
+      }
+      persistTripState();
     });
   });
 
-  routeGrid.querySelector("[data-show-routes]")?.addEventListener("click", (event) => {
+  ui.routeGrid.querySelector("[data-show-routes]")?.addEventListener("click", (event) => {
     event.preventDefault();
     selectedRouteIndex = null;
     renderRoutes();
-    formMessage.textContent = "Showing all route options.";
+    if (ui.formMessage) ui.formMessage.textContent = "Showing all route options.";
+    persistTripState();
   });
 }
 
@@ -1588,18 +1641,20 @@ function renderStopSectionLabel(label, isLoading) {
 }
 
 function renderRestaurants() {
-  if (!restaurantToggle.checked) {
-    restaurantList.innerHTML = `<div class="empty-state">Restaurant recommendations are off.</div>`;
+  if (!ui.restaurantList) return;
+
+  if (!restaurantToggleChecked()) {
+    ui.restaurantList.innerHTML = `<div class="empty-state">Restaurant recommendations are off.</div>`;
     drawRestaurantMarkers([]);
     return;
   }
 
   if (!activeTripStops.length) {
-    restaurantList.innerHTML = `<div class="empty-state">No route recommendation point is available for food suggestions yet.</div>`;
+    ui.restaurantList.innerHTML = `<div class="empty-state">No route recommendation point is available for food suggestions yet.</div>`;
     return;
   }
 
-  restaurantList.innerHTML = activeTripStops
+  ui.restaurantList.innerHTML = activeTripStops
     .map(
       (tripStop) => {
         const options = activeRestaurants.filter((restaurant) => restaurant.tripStopId === tripStop.id);
@@ -1818,20 +1873,22 @@ function getGasSuggestionsForStop(tripStop) {
 }
 
 function renderGasStations() {
-  if (!gasToggle.checked) {
-    gasPanel.className = "empty-state";
-    gasPanel.innerHTML = "Gas station display is off.";
+  if (!ui.gasPanel) return;
+
+  if (!gasToggleChecked()) {
+    ui.gasPanel.className = "empty-state";
+    ui.gasPanel.innerHTML = "Gas station display is off.";
     return;
   }
 
   if (!activeTripStops.length) {
-    gasPanel.className = "empty-state";
-    gasPanel.innerHTML = "No route recommendation point is available for gas suggestions yet.";
+    ui.gasPanel.className = "empty-state";
+    ui.gasPanel.innerHTML = "No route recommendation point is available for gas suggestions yet.";
     return;
   }
 
-  gasPanel.className = "restaurant-list";
-  gasPanel.innerHTML = activeTripStops
+  ui.gasPanel.className = "restaurant-list";
+  ui.gasPanel.innerHTML = activeTripStops
     .map(
       (tripStop) => {
         const isGasLoading = recommendationLoading.fuelStopIds.has(tripStop.id);
@@ -1877,8 +1934,9 @@ function validateDates(formData) {
   return "";
 }
 
-async function previewTrip({ scrollToRoutes = false } = {}) {
-  const formData = new FormData(tripForm);
+async function previewTrip({ navigateToRoutes = false } = {}) {
+  const formData = new FormData(ui.tripForm);
+  saveFormFromControls(ui.tripForm);
   const error = validateDates(formData);
   const mode = formData.get("mode");
   const origin = formData.get("origin")?.trim();
@@ -1887,27 +1945,44 @@ async function previewTrip({ scrollToRoutes = false } = {}) {
   const requestId = ++previewRequestId;
 
   if (error) {
-    formMessage.textContent = error;
+    if (ui.formMessage) ui.formMessage.textContent = error;
     return;
   }
 
   if (!origin || !destination) {
-    formMessage.textContent = "Enter both an origin and destination to create a route.";
+    if (ui.formMessage) ui.formMessage.textContent = "Enter both an origin and destination to create a route.";
     return;
   }
 
   if (mode !== "Car") {
-    formMessage.textContent = `${mode} support is planned. This prototype currently creates car routes.`;
+    if (ui.formMessage) ui.formMessage.textContent = `${mode} support is planned. This prototype currently creates car routes.`;
     return;
   }
 
-  if (scrollToRoutes) {
-    showPage("routes");
-    clearRouteResultsForNewRequest(origin, destination);
+  if (ui.formMessage) {
+    ui.formMessage.textContent = `Creating car routes from ${origin} to ${destination}.`;
   }
 
-  formMessage.textContent = `Creating car routes from ${origin} to ${destination}.`;
-  await loadDrivingDirections(origin, destination, departureAt, requestId);
+  if (navigateToRoutes) {
+    selectedRouteIndex = null;
+    activeRouteOptions = [];
+    activeRestaurants = [];
+    activeFuelStations = [];
+    activeTripStops = [];
+    recommendationLoading = {
+      restaurants: false,
+      fuel: false,
+      restaurantStopIds: new Set(),
+      fuelStopIds: new Set(),
+      townStopIds: new Set(),
+    };
+    persistTripState();
+    window.location.href = "routes.html";
+    return;
+  }
+
+  await loadDrivingDirections(origin, destination, departureAt, requestId, { loadRecommendations: false });
+  persistTripState();
 }
 
 const scheduleTripPreview = debounce(() => {
@@ -1921,8 +1996,10 @@ function scheduleTextFieldPreview(control) {
 }
 
 function setupAutoPreview() {
-  tripForm.querySelectorAll("input, select").forEach((control) => {
-    if (control === gasToggle || control === restaurantToggle) return;
+  if (!ui.tripForm) return;
+
+  ui.tripForm.querySelectorAll("input, select").forEach((control) => {
+    if (control.id === "gasToggle" || control.id === "restaurantToggle") return;
 
     if (control.type === "text") {
       control.addEventListener("change", () => scheduleTextFieldPreview(control));
@@ -1939,43 +2016,86 @@ function setupAutoPreview() {
   });
 }
 
-themeToggle.addEventListener("click", () => {
-  setTheme(root.dataset.theme === "dark" ? "light" : "dark");
-});
+export function initRouteInfoPage() {
+  hydrateTripState();
+  setupAddressAutocomplete("#origin", "#originSuggestions");
+  setupAddressAutocomplete("#destination", "#destinationSuggestions");
+  loadFormIntoForm(ui.tripForm);
 
-pageButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    showPage(button.dataset.pageTarget);
+  if (!ui.tripForm?.elements.origin?.value) {
+    setDefaultTripValues();
+  }
+  if (!ui.tripForm?.elements.departDate?.value) {
+    setDefaultDates();
+  } else {
+    syncDateSequence();
+  }
+
+  setupAutoPreview();
+
+  const gasToggle = getGasToggle();
+  const restaurantToggle = getRestaurantToggle();
+
+  ui.tripForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await previewTrip({ navigateToRoutes: true });
   });
-});
 
-directionsToggle.addEventListener("click", () => {
-  setDirectionsExpanded(directionsList.hidden);
-});
+  gasToggle?.addEventListener("change", () => {
+    saveFormFromControls(ui.tripForm);
+    scheduleTripPreview();
+  });
 
-tripForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await previewTrip({ scrollToRoutes: true });
-});
+  restaurantToggle?.addEventListener("change", () => {
+    saveFormFromControls(ui.tripForm);
+    scheduleTripPreview();
+  });
 
-gasToggle.addEventListener("change", () => {
-  renderGasStations();
-  scheduleTripPreview();
-});
+  previewTrip();
+}
 
-restaurantToggle.addEventListener("change", () => {
+export function initRoutesPage() {
+  hydrateTripState();
+  initMap();
+  renderRoutes();
+
+  if (ui.directionsToggle && ui.directionsList) {
+    ui.directionsToggle.addEventListener("click", () => {
+      setDirectionsExpanded(ui.directionsList.hidden);
+    });
+  }
+
+  if (activeRouteOptions.length && activeOrigin && activeDestination) {
+    const index = selectedRouteIndex ?? 0;
+    displayRouteSelection(index, previewRequestId, { loadRecommendations: true });
+  } else {
+    const { form } = getState();
+    if (form.origin && form.destination) {
+      const departureAt = getDepartureDateTime(new FormData());
+      const requestId = ++previewRequestId;
+      loadDrivingDirections(form.origin, form.destination, departureAt, requestId, { loadRecommendations: true });
+    } else if (ui.mapStatus) {
+      ui.mapStatus.textContent = "Enter a trip on the route info page to calculate driving directions.";
+    }
+  }
+
+  if (map) {
+    setTimeout(() => map.invalidateSize(), 0);
+  }
+}
+
+export function initMealsPage() {
+  hydrateTripState();
+
+  const gasToggle = document.querySelector("#gasToggle");
+  const restaurantToggle = document.querySelector("#restaurantToggle");
+  if (gasToggle) gasToggle.checked = isGasEnabled();
+  if (restaurantToggle) restaurantToggle.checked = isRestaurantEnabled();
+
   renderRestaurants();
-  scheduleTripPreview();
-});
+}
 
-setTheme(localStorage.getItem("travel-helper-theme") || "light");
-setDefaultDates();
-setDefaultTripValues();
-setupAddressAutocomplete("#origin", "#originSuggestions");
-setupAddressAutocomplete("#destination", "#destinationSuggestions");
-setupAutoPreview();
-initMap();
-renderRoutes();
-renderRestaurants();
-renderGasStations();
-previewTrip();
+export function initGasPage() {
+  hydrateTripState();
+  renderGasStations();
+}

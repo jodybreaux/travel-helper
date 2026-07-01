@@ -131,8 +131,13 @@ a {
 .nav-actions a:focus-visible,
 .nav-link:hover,
 .nav-link:focus-visible,
-.nav-link.active {
+body[data-current-page="home"] .nav-link[href="index.html"],
+body[data-current-page="route-info"] .nav-link[href="route-info.html"],
+body[data-current-page="routes"] .nav-link[href="routes.html"],
+body[data-current-page="meals"] .nav-link[href="meals.html"],
+body[data-current-page="gas"] .nav-link[href="gas.html"] {
   color: var(--text);
+  font-weight: 800;
 }
 
 .theme-toggle,
@@ -264,18 +269,10 @@ h3 {
   grid-column: 2;
 }
 
-.page-actions .button.active {
+.page-actions .button[aria-current="page"] {
   background: var(--primary);
   color: white;
   box-shadow: 0 12px 28px rgba(37, 99, 235, 0.26);
-}
-
-.app-page {
-  display: none;
-}
-
-.app-page.active {
-  display: block;
 }
 
 .hero-card,
@@ -708,17 +705,8 @@ a:focus-visible {
 
 .details-layout {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.details-layout.app-page {
-  display: none;
   grid-template-columns: minmax(0, 1fr);
-}
-
-.details-layout.app-page.active {
-  display: grid;
+  gap: 1rem;
 }
 
 .insight-card {

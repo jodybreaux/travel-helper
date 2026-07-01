@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Travel Helper</title>
+    <title>Meals · Travel Helper</title>
     <link rel="stylesheet" href="styles.css?v=2.27-weather-fix" />
   </head>
-  <body data-current-page="home">
+  <body data-current-page="meals">
     <header class="site-header">
       <nav class="nav" aria-label="Primary navigation">
         <a class="brand" href="index.html" aria-label="Travel Helper home">
@@ -26,21 +26,17 @@
     </header>
 
     <main id="top">
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Smart trip planning preview</p>
-          <h1>Route-Aware Trip Planning</h1>
-          <p class="hero-text">
-            Compare route options, plan suggested food and gas stops, preview weather, and keep
-            useful stops close to your path.
-          </p>
-          <div class="hero-actions page-actions" aria-label="Trip planning pages">
-            <a class="button button-primary" href="route-info.html">Enter route info</a>
-            <a class="button button-secondary" href="routes.html">Select routes</a>
-            <a class="button button-secondary" href="meals.html">Meals</a>
-            <a class="button button-secondary" href="gas.html">Gas</a>
+      <section class="details-layout" aria-label="Meal recommendations">
+        <article class="insight-card">
+          <div class="card-header">
+            <span class="icon-bubble">M</span>
+            <div>
+              <h3>Meal Recommendations</h3>
+              <p>Suggested restaurants, cafes, fast-food stops, and paired gas options near each planned stop, with forward fallback options when needed.</p>
+            </div>
           </div>
-        </div>
+          <div class="restaurant-list" id="restaurantList"></div>
+        </article>
       </section>
     </main>
 
@@ -48,6 +44,6 @@
       <p>Cajun Travel Services · v2.26 · Built 2026-07-01 00:00 UTC</p>
     </footer>
 
-    <script type="module" src="js/pages/home.js?v=2.27-weather-fix"></script>
+    <script type="module" src="js/pages/meals.js?v=2.27-weather-fix"></script>
   </body>
 </html>
