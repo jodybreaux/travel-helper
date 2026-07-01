@@ -245,3 +245,21 @@ export function initNearMeLookup({
     });
   });
 }
+
+export function clearNearMeResults() {
+  nearMeState = defaultNearMeState();
+  persistNearMeState();
+  setNearMeButtonLoading(false);
+
+  const resultsElement = document.querySelector("#nearMeResults");
+  const statusElement = document.querySelector("#nearMeStatus");
+
+  if (resultsElement) {
+    resultsElement.hidden = true;
+    resultsElement.innerHTML = "";
+  }
+
+  if (statusElement) {
+    statusElement.textContent = "";
+  }
+}

@@ -35,6 +35,7 @@ import {
   isRestaurantEnabled,
 } from "./trip-store.js";
 import { addRecentRoute, setupRecentRoutesSelect } from "./recent-routes.js";
+import { clearNearMeResults } from "./near-me.js";
 import { ui } from "./ui.js";
 import {
   fetchWeatherAlertsForRoute,
@@ -1475,6 +1476,7 @@ function updateRouteCardStats(routeOptions = activeRouteOptions) {
 }
 
 function clearRouteResultsForNewRequest(originQuery, destinationQuery) {
+  clearNearMeResults();
   selectedRouteIndex = null;
   activeRouteOptions = [];
   activeRestaurants = [];
@@ -1714,6 +1716,8 @@ async function loadDrivingDirections(
   requestId = previewRequestId,
   { loadRecommendations = true } = {},
 ) {
+  clearRouteResultsForNewRequest(originQuery, destinationQuery);
+
   if (ui.mapStatus) {
     ui.mapStatus.textContent = `Finding a driving route from ${originQuery} to ${destinationQuery}...`;
   }
@@ -2190,19 +2194,7 @@ async function previewTrip({ navigateToRoutes = false } = {}) {
 
   if (navigateToRoutes) {
     addRecentRoute({ origin, destination });
-    selectedRouteIndex = null;
-    activeRouteOptions = [];
-    activeRestaurants = [];
-    activeFuelStations = [];
-    activeTripStops = [];
-    recommendationLoading = {
-      restaurants: false,
-      fuel: false,
-      restaurantStopIds: new Set(),
-      fuelStopIds: new Set(),
-      townStopIds: new Set(),
-    };
-    persistTripState();
+    clearRouteResultsForNewRequest(origin, destination);
     window.location.href = "routes.html";
     return;
   }

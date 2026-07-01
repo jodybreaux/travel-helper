@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.38  
+**Version:** 2.39  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.38 |
+| Current version | 2.39 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -676,8 +676,8 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.38`.
-- Improved mobile button sizing/centering and added street-address display for near-me lookups.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.39`.
+- Clear near-me food and gas findings when a new route plan starts.
 - Fixed Geoapify fuel category list and Overpass per-stop fallback when batch lookup fails.
 - Meals and Gas pages now reload missing recommendations from the saved route.
 - Meals and Gas pages include a `Food & gas near me` action that uses browser geolocation to load up
@@ -685,6 +685,7 @@ Production note:
 - The `Food & gas near me` action lives in a dedicated top utility bar on every page and shows a wait
   cursor plus loading label while location and place lookups are in progress.
 - Near-me results display the reverse-geocoded street address for the user's current location.
+- Near-me food and gas findings are cleared when a new route plan is started.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -754,3 +755,4 @@ Production note:
 | 2.36 | July 1, 2026 | Removed gas toggle, moved near-me to top nav, added wait cursor on lookup |
 | 2.37 | July 1, 2026 | Prominent near-me utility bar and clearer wait-cursor loading state |
 | 2.38 | July 1, 2026 | Mobile button alignment fixes and near-me street address display |
+| 2.39 | July 1, 2026 | Clear near-me results when starting a new route plan |
