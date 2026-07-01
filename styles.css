@@ -75,6 +75,47 @@ a {
   backdrop-filter: blur(18px);
 }
 
+.near-me-bar {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 1.25rem 0.85rem;
+}
+
+.near-me-bar .near-me-status {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.near-me-bar .near-me-results {
+  display: grid;
+  gap: 1rem;
+}
+
+.nav-near-me {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nav-near-me:disabled {
+  cursor: wait;
+}
+
+.near-me-wait {
+  margin-left: 0.35rem;
+}
+
+body.is-waiting,
+body.is-waiting * {
+  cursor: wait !important;
+}
+
+body.is-waiting .wait-cursor {
+  cursor: wait !important;
+}
+
 .nav {
   display: flex;
   align-items: center;
@@ -417,32 +458,9 @@ h3 {
   width: 100%;
 }
 
-.near-me-panel {
-  display: grid;
-  gap: 0.85rem;
-  margin-bottom: 1.25rem;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
-}
-
-.near-me-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.85rem 1rem;
-}
-
-.near-me-status {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.95rem;
-}
-
-.near-me-results {
-  display: grid;
-  gap: 1rem;
+.near-me-section h4 {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
 }
 
 .near-me-summary {
@@ -453,11 +471,6 @@ h3 {
 .near-me-summary span {
   color: var(--muted);
   font-size: 0.92rem;
-}
-
-.near-me-section h4 {
-  margin: 0 0 0.65rem;
-  font-size: 1rem;
 }
 
 .form-grid {

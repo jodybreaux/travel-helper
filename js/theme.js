@@ -1,3 +1,5 @@
+import { initNearMeLookup } from "./near-me.js";
+
 export function setTheme(theme) {
   const root = document.documentElement;
   root.dataset.theme = theme;
@@ -13,10 +15,12 @@ export function initTheme() {
   setTheme(localStorage.getItem("travel-helper-theme") || "light");
 
   const themeToggle = document.querySelector("#themeToggle");
-  if (!themeToggle) return;
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const root = document.documentElement;
+      setTheme(root.dataset.theme === "dark" ? "light" : "dark");
+    });
+  }
 
-  themeToggle.addEventListener("click", () => {
-    const root = document.documentElement;
-    setTheme(root.dataset.theme === "dark" ? "light" : "dark");
-  });
+  initNearMeLookup();
 }

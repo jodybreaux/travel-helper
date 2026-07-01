@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.35  
+**Version:** 2.36  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.35 |
+| Current version | 2.36 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -39,7 +39,7 @@ weather forecasts, dining options, gas stations, traffic conditions, and travel 
 | Meal options | Geoapify Places (free tier) with OpenStreetMap/Overpass fallback near route recommendation stops |
 | Gas stations | Geoapify Places (free tier) with OpenStreetMap/Overpass fallback within 2 miles of route recommendation stops |
 | Weather | National Weather Service active-alert overlays for United States routes |
-| User preferences | Theme, date format, timezone, gas toggle, and restaurant toggle UI in place |
+| User preferences | Theme, date format, timezone, and restaurant toggle UI in place |
 | Remaining major gaps | Weather forecasts, real-time traffic incidents, public transit, flights, and full accessibility audit |
 
 ## 2. Project Overview
@@ -85,7 +85,7 @@ personalized options for dining and fuel stops.
 | Date Format | US or international standards | US Format | UI implemented |
 | Time Zone | IANA timezone | Central Time | UI implemented |
 | Theme | Light or Dark mode | Light | Implemented with localStorage |
-| Gas Station Display | Toggle on/off | On | UI implemented with mock data |
+| Gas Station Display | Always on | On | Implemented with live data |
 | Restaurant Display | Toggle on/off | On | Implemented with live OSM restaurant data |
 
 ## 4. Functional Requirements
@@ -299,11 +299,11 @@ Prototype status:
 
 ### 4.6 Gas Station Integration
 
-**REQ-4.6.1: Gas Station Toggle**  
-The application shall provide a user-selectable button to toggle gas station display on/off.
+**REQ-4.6.1: Gas Station Display**  
+The application shall always display gas station recommendations alongside route planning.
 
 Prototype status:
-- Implemented as a UI toggle, enabled by default.
+- Implemented and always enabled.
 - Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
   recommendations when Geoapify or public Overpass data is available.
 - Fuel station search is limited to named fuel options within 2 miles of each planned route stop.
@@ -676,11 +676,15 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.35`.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.36`.
+- Removed the gas-station display toggle; gas recommendations are always shown.
+- Moved `Food & gas near me` into the top navigation with a wait cursor during lookup.
 - Fixed Geoapify fuel category list and Overpass per-stop fallback when batch lookup fails.
 - Meals and Gas pages now reload missing recommendations from the saved route.
 - Meals and Gas pages include a `Food & gas near me` action that uses browser geolocation to load up
   to 10 nearby food options and 3 nearby gas stations sorted by distance, with Street View thumbnails.
+- The `Food & gas near me` action lives in the top app navigation on every page and shows a wait
+  cursor while location and place lookups are in progress.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -747,3 +751,4 @@ Production note:
 | 2.33 | July 1, 2026 | Fixed Geoapify empty-result fallback to Overpass for food and gas |
 | 2.34 | July 1, 2026 | Fixed Geoapify fuel categories and recommendation reload on Meals/Gas pages |
 | 2.35 | July 1, 2026 | Added previous-routes dropdown and near-me food/gas lookup with thumbnails |
+| 2.36 | July 1, 2026 | Removed gas toggle, moved near-me to top nav, added wait cursor on lookup |

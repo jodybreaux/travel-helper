@@ -25,7 +25,6 @@ function defaultForm() {
     departTime: "08:00",
     mode: "Car",
     timezone: "America/Chicago",
-    gasEnabled: true,
     restaurantEnabled: true,
     dateFormat: "en-US",
   };
@@ -171,7 +170,6 @@ export function saveFormFromFormData(formData) {
     departTime: formData.get("departTime") || "08:00",
     mode: formData.get("mode") || "Car",
     timezone: formData.get("timezone") || "America/Chicago",
-    gasEnabled: formData.get("gasEnabled") === "on" || formData.get("gasEnabled") === true,
     restaurantEnabled: formData.get("restaurantEnabled") === "on" || formData.get("restaurantEnabled") === true,
     dateFormat: formData.get("dateFormat") || state.form.dateFormat,
   };
@@ -183,9 +181,7 @@ export function saveFormFromControls(form) {
 
   saveFormFromFormData(new FormData(form));
 
-  const gasToggle = form.querySelector("#gasToggle");
   const restaurantToggle = form.querySelector("#restaurantToggle");
-  state.form.gasEnabled = gasToggle ? gasToggle.checked : state.form.gasEnabled;
   state.form.restaurantEnabled = restaurantToggle ? restaurantToggle.checked : state.form.restaurantEnabled;
   persist();
 }
@@ -214,9 +210,7 @@ export function loadFormIntoForm(form) {
   setValue("timezone", saved.timezone);
   setValue("dateFormat", saved.dateFormat);
 
-  const gasToggle = form.querySelector("#gasToggle");
   const restaurantToggle = form.querySelector("#restaurantToggle");
-  if (gasToggle) gasToggle.checked = saved.gasEnabled;
   if (restaurantToggle) restaurantToggle.checked = saved.restaurantEnabled;
 }
 
@@ -226,10 +220,6 @@ export function getTimezone() {
 
 export function isRestaurantEnabled() {
   return state.form.restaurantEnabled !== false;
-}
-
-export function isGasEnabled() {
-  return state.form.gasEnabled !== false;
 }
 
 export function nextPreviewRequestId() {

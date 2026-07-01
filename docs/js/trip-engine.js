@@ -33,7 +33,6 @@ import {
   loadFormIntoForm,
   getTimezone,
   isRestaurantEnabled,
-  isGasEnabled,
 } from "./trip-store.js";
 import { addRecentRoute, setupRecentRoutesSelect } from "./recent-routes.js";
 import { ui } from "./ui.js";
@@ -48,17 +47,8 @@ function getTripForm() {
   return ui.tripForm;
 }
 
-function getGasToggle() {
-  return getTripForm()?.querySelector("#gasToggle");
-}
-
 function getRestaurantToggle() {
   return getTripForm()?.querySelector("#restaurantToggle");
-}
-
-function gasToggleChecked() {
-  const toggle = getGasToggle();
-  return toggle ? toggle.checked : isGasEnabled();
 }
 
 function restaurantToggleChecked() {
@@ -1599,8 +1589,7 @@ function startRouteRecommendationLoads(route, departureAt, requestId) {
       });
   }
 
-  if (gasToggleChecked()) {
-    fetchFuelStationsAlongRoute(route, departureAt, (stations, stopId, isComplete) => {
+  fetchFuelStationsAlongRoute(route, departureAt, (stations, stopId, isComplete) => {
       if (requestId !== previewRequestId) return;
       activeFuelStations = sortFuelStations(mergeRecommendations(activeFuelStations, stations));
       if (isComplete) recommendationLoading.fuelStopIds.delete(stopId);
@@ -1627,11 +1616,10 @@ function startRouteRecommendationLoads(route, departureAt, requestId) {
         }
         if (restaurantToggleChecked()) renderRestaurants();
       });
-  }
 }
 
 function loadRecommendationsEnabled() {
-  return restaurantToggleChecked() || gasToggleChecked();
+  return true;
 }
 
 function ensureRecommendationsLoaded() {
@@ -1658,9 +1646,7 @@ function ensureRecommendationsLoaded() {
   const needsRestaurants = restaurantToggleChecked()
     && !activeRestaurants.length
     && !recommendationLoading.restaurants;
-  const needsFuel = gasToggleChecked()
-    && !activeFuelStations.length
-    && !recommendationLoading.fuel;
+  const needsFuel = !activeFuelStations.length && !recommendationLoading.fuel;
 
   if (!needsRestaurants && !needsFuel) {
     return;
@@ -1704,9 +1690,9 @@ function displayRouteSelection(index, requestId = previewRequestId, { loadRecomm
   activeTripStops = getTripRecommendationStops(route, departureAt);
   recommendationLoading = {
     restaurants: loadRecommendations && restaurantToggleChecked() && activeTripStops.length > 0,
-    fuel: loadRecommendations && gasToggleChecked() && activeTripStops.length > 0,
+    fuel: loadRecommendations && activeTripStops.length > 0,
     restaurantStopIds: new Set(loadRecommendations && restaurantToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
-    fuelStopIds: new Set(loadRecommendations && gasToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    fuelStopIds: new Set(loadRecommendations ? activeTripStops.map((tripStop) => tripStop.id) : []),
     townStopIds: new Set(activeTripStops.map((tripStop) => tripStop.id)),
   };
   drawRestaurantMarkers([]);
@@ -1748,7 +1734,7 @@ async function loadDrivingDirections(
     if (loadRecommendations && restaurantToggleChecked() && ui.restaurantList) {
       ui.restaurantList.innerHTML = `<div class="empty-state">Checking the route for food recommendations...</div>`;
     }
-    if (loadRecommendations && gasToggleChecked() && ui.gasPanel) {
+    if (loadRecommendations && ui.gasPanel) {
       ui.gasPanel.className = "empty-state";
       ui.gasPanel.innerHTML = "Checking the route for gas recommendations...";
     }
@@ -2120,12 +2106,6 @@ function getGasSuggestionsForStop(tripStop) {
 function renderGasStations() {
   if (!ui.gasPanel) return;
 
-  if (!gasToggleChecked()) {
-    ui.gasPanel.className = "empty-state";
-    ui.gasPanel.innerHTML = "Gas station display is off.";
-    return;
-  }
-
   if (!activeTripStops.length) {
     ui.gasPanel.className = "empty-state";
     ui.gasPanel.innerHTML = "No route recommendation point is available for gas suggestions yet.";
@@ -2245,7 +2225,7 @@ function setupAutoPreview() {
   if (!ui.tripForm) return;
 
   ui.tripForm.querySelectorAll("input, select").forEach((control) => {
-    if (control.id === "gasToggle" || control.id === "restaurantToggle") return;
+    if (control.id === "restaurantToggle") return;
 
     if (control.type === "text") {
       control.addEventListener("change", () => scheduleTextFieldPreview(control));
@@ -2291,17 +2271,11 @@ export function initRouteInfoPage() {
     scheduleTripPreview();
   });
 
-  const gasToggle = getGasToggle();
   const restaurantToggle = getRestaurantToggle();
 
   ui.tripForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     await previewTrip({ navigateToRoutes: true });
-  });
-
-  gasToggle?.addEventListener("change", () => {
-    saveFormFromControls(ui.tripForm);
-    scheduleTripPreview();
   });
 
   restaurantToggle?.addEventListener("change", () => {
@@ -2353,9 +2327,7 @@ export function initRoutesPage() {
 export function initMealsPage() {
   hydrateTripState();
 
-  const gasToggle = document.querySelector("#gasToggle");
   const restaurantToggle = document.querySelector("#restaurantToggle");
-  if (gasToggle) gasToggle.checked = isGasEnabled();
   if (restaurantToggle) restaurantToggle.checked = isRestaurantEnabled();
 
   ensureRecommendationsLoaded();

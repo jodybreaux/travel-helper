@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Travel Helper</title>
-    <link rel="stylesheet" href="styles.css?v=2.35" />
+    <link rel="stylesheet" href="styles.css?v=2.36" />
   </head>
   <body data-current-page="home">
     <header class="site-header">
@@ -14,6 +14,10 @@
           <span>Travel Helper</span>
         </a>
         <div class="nav-actions">
+          <button type="button" class="nav-link nav-near-me" id="nearMeButton" aria-label="Find food and gas near your current location">
+            Food &amp; gas near me
+            <span class="wait-cursor near-me-wait" id="nearMeWait" hidden aria-hidden="true"></span>
+          </button>
           <a class="nav-link" href="route-info.html">Plan a Trip</a>
           <a class="nav-link" href="routes.html">Routes</a>
           <a class="nav-link" href="meals.html">Meals</a>
@@ -23,6 +27,10 @@
           </button>
         </div>
       </nav>
+      <div class="near-me-bar" aria-label="Food and gas near your current location">
+        <p class="near-me-status" id="nearMeStatus" role="status" aria-live="polite"></p>
+        <div class="near-me-results restaurant-list" id="nearMeResults" hidden></div>
+      </div>
     </header>
 
     <main id="top">
@@ -45,9 +53,9 @@
     </main>
 
     <footer class="site-footer">
-      <p>Cajun Travel Services · v2.35 · Built 2026-07-01 22:15 UTC</p>
+      <p>Cajun Travel Services · v2.36 · Built 2026-07-01 22:45 UTC</p>
     </footer>
 
-    <script type="module" src="js/pages/home.js?v=2.35"></script>
+    <script type="module" src="js/pages/home.js?v=2.36"></script>
   </body>
 </html>

@@ -140,7 +140,20 @@ function setNearMeStatus(statusElement, message) {
   }
 }
 
-async function searchFoodAndGasNearMe({ button, statusElement, resultsElement }) {
+function setNearMeWaiting(isWaiting, { button, waitElement } = {}) {
+  document.body.classList.toggle("is-waiting", isWaiting);
+
+  if (button) {
+    button.disabled = isWaiting;
+    button.setAttribute("aria-busy", isWaiting ? "true" : "false");
+  }
+
+  if (waitElement) {
+    waitElement.hidden = !isWaiting;
+  }
+}
+
+async function searchFoodAndGasNearMe({ button, waitElement, statusElement, resultsElement }) {
   if (nearMeState.loading) return;
 
   nearMeState = {
@@ -150,7 +163,7 @@ async function searchFoodAndGasNearMe({ button, statusElement, resultsElement })
   persistNearMeState();
   renderNearMeResults(resultsElement);
   setNearMeStatus(statusElement, "Requesting your location...");
-  if (button) button.disabled = true;
+  setNearMeWaiting(true, { button, waitElement });
 
   try {
     const location = await getCurrentPosition();
@@ -184,17 +197,19 @@ async function searchFoodAndGasNearMe({ button, statusElement, resultsElement })
     persistNearMeState();
     setNearMeStatus(statusElement, nearMeState.error);
   } finally {
-    if (button) button.disabled = false;
+    setNearMeWaiting(false, { button, waitElement });
     renderNearMeResults(resultsElement);
   }
 }
 
 export function initNearMeLookup({
   button = "#nearMeButton",
+  wait = "#nearMeWait",
   status = "#nearMeStatus",
   results = "#nearMeResults",
 } = {}) {
   const buttonElement = typeof button === "string" ? document.querySelector(button) : button;
+  const waitElement = typeof wait === "string" ? document.querySelector(wait) : wait;
   const statusElement = typeof status === "string" ? document.querySelector(status) : status;
   const resultsElement = typeof results === "string" ? document.querySelector(results) : results;
 
@@ -213,6 +228,7 @@ export function initNearMeLookup({
   buttonElement.addEventListener("click", () => {
     searchFoodAndGasNearMe({
       button: buttonElement,
+      waitElement,
       statusElement,
       resultsElement,
     });
