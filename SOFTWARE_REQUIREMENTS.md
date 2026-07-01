@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.31  
+**Version:** 2.33  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.31 |
+| Current version | 2.33 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -386,8 +386,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.31` and UTC build timestamp
-  `2026-07-01 20:50 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.32` and UTC build timestamp
+  `2026-07-01 20:56 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -674,8 +674,8 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.31`.
-- Moved the Geoapify API key to a GitHub Actions secret and enabled secure deploy-time injection.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.33`.
+- Fixed food and gas lookup fallback so empty Geoapify results continue to OpenStreetMap Overpass.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -738,3 +738,5 @@ Production note:
 | 2.29 | July 1, 2026 | Added Geoapify Places as the primary food and gas provider with Overpass fallback |
 | 2.30 | July 1, 2026 | Enabled Geoapify API key for live food and gas lookups |
 | 2.31 | July 1, 2026 | Moved Geoapify key to GitHub secret with Actions deploy injection |
+| 2.32 | July 1, 2026 | Added GitHub Actions Pages deploy workflow |
+| 2.33 | July 1, 2026 | Fixed Geoapify empty-result fallback to Overpass for food and gas |

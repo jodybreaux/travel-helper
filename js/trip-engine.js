@@ -1128,7 +1128,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt, onUpdate) {
 
   if (isGeoapifyConfigured()) {
     try {
-      return await fetchGeoapifyRestaurantsAlongRoute(tripStops, onUpdate, {
+      const geoapifyRestaurants = await fetchGeoapifyRestaurantsAlongRoute(tripStops, onUpdate, {
         route,
         getForwardRecommendationSearchPointsWithinMiles,
         foodForwardRecommendationLookaheadMiles: FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES,
@@ -1137,6 +1137,9 @@ async function fetchRestaurantsAlongRoute(route, departureAt, onUpdate) {
         preferDirectRecommendations,
         sortRestaurants,
       });
+      if (geoapifyRestaurants.length) {
+        return geoapifyRestaurants;
+      }
     } catch {
       // Fall back to Overpass when Geoapify is unavailable or rate-limited.
     }
@@ -1312,7 +1315,7 @@ async function fetchFuelStationsAlongRoute(route, departureAt, onUpdate) {
 
   if (isGeoapifyConfigured()) {
     try {
-      return await fetchGeoapifyFuelStationsAlongRoute(tripStops, onUpdate, {
+      const geoapifyStations = await fetchGeoapifyFuelStationsAlongRoute(tripStops, onUpdate, {
         route,
         getForwardRecommendationSearchPoints,
         forwardRecommendationRetryPoints: FORWARD_RECOMMENDATION_RETRY_POINTS,
@@ -1320,6 +1323,9 @@ async function fetchFuelStationsAlongRoute(route, departureAt, onUpdate) {
         preferDirectRecommendations,
         sortFuelStations,
       });
+      if (geoapifyStations.length) {
+        return geoapifyStations;
+      }
     } catch {
       // Fall back to Overpass when Geoapify is unavailable or rate-limited.
     }

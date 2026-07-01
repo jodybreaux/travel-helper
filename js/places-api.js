@@ -7,7 +7,7 @@ import { GEOAPIFY_API_KEY, isGeoapifyConfigured } from "./places-config.js";
 export { isGeoapifyConfigured };
 
 export const GEOAPIFY_FOOD_CATEGORIES = "catering.restaurant,catering.fast_food,catering.cafe";
-export const GEOAPIFY_FUEL_CATEGORIES = "service.fuel";
+export const GEOAPIFY_FUEL_CATEGORIES = "commercial.gas_station,service.fuel,service.vehicle.fuel";
 
 const GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places";
 const GEOAPIFY_REQUEST_TIMEOUT_MS = 8000;
@@ -59,11 +59,19 @@ function getNearestSearchPoint(location, searchPoints) {
     .sort((a, b) => a.distanceMiles - b.distanceMiles)[0];
 }
 
+function getGeoapifyDistanceMilesForPlace(props, searchPoint) {
+  if (props.distance != null) {
+    return props.distance / 1609.344;
+  }
+
+  return searchPoint?.distanceMiles ?? Number.POSITIVE_INFINITY;
+}
+
 export function normalizeGeoapifyRestaurant(feature, tripStops, searchPoints) {
   const props = feature.properties || {};
   const lat = props.lat;
   const lon = props.lon;
-  const name = props.name;
+  const name = props.name || props.address_line1 || props.brand;
 
   if (!name || lat == null || lon == null) return null;
 
@@ -76,6 +84,7 @@ export function normalizeGeoapifyRestaurant(feature, tripStops, searchPoints) {
     : "Cuisine not listed";
   const address = props.formatted || props.address_line1 || "";
   const hours = props.opening_hours ? ` · ${props.opening_hours}` : "";
+  const distanceMiles = getGeoapifyDistanceMilesForPlace(props, searchPoint);
 
   return {
     id: `geoapify-${props.place_id}`,
@@ -86,7 +95,7 @@ export function normalizeGeoapifyRestaurant(feature, tripStops, searchPoints) {
     passTime: tripStop?.passTime,
     road: searchPoint?.road || tripStop?.road || "route area",
     distanceFromOriginMiles: tripStop?.distanceFromOriginMiles,
-    distanceMiles: searchPoint?.distanceMiles,
+    distanceMiles,
     isForwardFallback: Boolean(searchPoint?.isForwardFallback),
     distanceAheadMiles: searchPoint?.distanceAheadMiles || 0,
     isShortTrip: Boolean(tripStop?.isShortTrip),
@@ -114,6 +123,7 @@ export function normalizeGeoapifyFuelStation(feature, tripStops, searchPoints) {
     .map((category) => category.replace(/^.*\./, "").replaceAll("_", " "))
     .filter(Boolean);
   const fuelDetails = fuelCategories.length ? ` · ${fuelCategories.join(", ")}` : "";
+  const distanceMiles = getGeoapifyDistanceMilesForPlace(props, searchPoint);
 
   return {
     id: `geoapify-${props.place_id}`,
@@ -123,7 +133,7 @@ export function normalizeGeoapifyFuelStation(feature, tripStops, searchPoints) {
     passTime: tripStop?.passTime,
     road: searchPoint?.road || tripStop?.road || "route area",
     distanceFromOriginMiles: tripStop?.distanceFromOriginMiles,
-    distanceMiles: searchPoint?.distanceMiles,
+    distanceMiles,
     isForwardFallback: Boolean(searchPoint?.isForwardFallback),
     distanceAheadMiles: searchPoint?.distanceAheadMiles || 0,
     isShortTrip: Boolean(tripStop?.isShortTrip),
