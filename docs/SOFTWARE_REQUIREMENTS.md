@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.27  
+**Version:** 2.28  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.27 |
+| Current version | 2.28 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -384,8 +384,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.27` and UTC build timestamp
-  `2026-07-01 20:16 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.28` and UTC build timestamp
+  `2026-07-01 20:28 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -668,7 +668,7 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.27`.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.28`.
 - Sped up food and gas lookups by batching direct stop searches, racing Overpass mirrors in parallel,
   simplifying restaurant queries, capping food retry attempts, caching repeated Overpass queries, and
   deferring nearby-town lookups so they do not compete with recommendation requests.
@@ -728,3 +728,4 @@ Production note:
 | 2.24 | June 29, 2026 | Added nearby-town stop context, per-stop wait indicators, and progressive Food/Gas rendering |
 | 2.26 | July 1, 2026 | Split the prototype into separate HTML pages with shared session-based trip state |
 | 2.27 | July 1, 2026 | Restored route-option selection on the routes page after the multi-page refactor |
+| 2.28 | July 1, 2026 | Sped up food and gas lookups with batched Overpass queries and parallel mirror failover |
