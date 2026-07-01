@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.34  
+**Version:** 2.35  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.34 |
+| Current version | 2.35 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -385,6 +385,8 @@ Prototype status:
 - Route creation uses a `Create route` submit button that navigates users to `routes.html`.
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
+- A previous-routes dropdown stores the last 10 origin/destination pairs in `localStorage` and fills
+  the trip form when a saved route is selected.
 - Main hero title is `Route-Aware Trip Planning`.
 - Footer branding displays `Cajun Travel Services` with app version `v2.32` and UTC build timestamp
   `2026-07-01 20:56 UTC`.
@@ -674,9 +676,11 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.34`.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.35`.
 - Fixed Geoapify fuel category list and Overpass per-stop fallback when batch lookup fails.
 - Meals and Gas pages now reload missing recommendations from the saved route.
+- Meals and Gas pages include a `Food & gas near me` action that uses browser geolocation to load up
+  to 10 nearby food options and 3 nearby gas stations sorted by distance, with Street View thumbnails.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -742,3 +746,4 @@ Production note:
 | 2.32 | July 1, 2026 | Added GitHub Actions Pages deploy workflow |
 | 2.33 | July 1, 2026 | Fixed Geoapify empty-result fallback to Overpass for food and gas |
 | 2.34 | July 1, 2026 | Fixed Geoapify fuel categories and recommendation reload on Meals/Gas pages |
+| 2.35 | July 1, 2026 | Added previous-routes dropdown and near-me food/gas lookup with thumbnails |

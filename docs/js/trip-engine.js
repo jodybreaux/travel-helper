@@ -35,6 +35,7 @@ import {
   isRestaurantEnabled,
   isGasEnabled,
 } from "./trip-store.js";
+import { addRecentRoute, setupRecentRoutesSelect } from "./recent-routes.js";
 import { ui } from "./ui.js";
 import {
   fetchWeatherAlertsForRoute,
@@ -2208,6 +2209,7 @@ async function previewTrip({ navigateToRoutes = false } = {}) {
   }
 
   if (navigateToRoutes) {
+    addRecentRoute({ origin, destination });
     selectedRouteIndex = null;
     activeRouteOptions = [];
     activeRestaurants = [];
@@ -2276,6 +2278,18 @@ export function initRouteInfoPage() {
   }
 
   setupAutoPreview();
+
+  setupRecentRoutesSelect(document.querySelector("#recentRoutesSelect"), (route) => {
+    if (!ui.tripForm) return;
+
+    ui.tripForm.elements.origin.value = route.origin;
+    ui.tripForm.elements.destination.value = route.destination;
+    saveFormFromControls(ui.tripForm);
+    if (ui.formMessage) {
+      ui.formMessage.textContent = `Loaded previous route from ${route.origin} to ${route.destination}.`;
+    }
+    scheduleTripPreview();
+  });
 
   const gasToggle = getGasToggle();
   const restaurantToggle = getRestaurantToggle();

@@ -1,6 +1,9 @@
 import {
   ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS,
   ROUTE_RECOMMENDATION_SEARCH_RADIUS_MILES,
+  NEAR_ME_SEARCH_RADIUS_METERS,
+  NEAR_ME_SEARCH_RADIUS_MILES,
+  OVERPASS_REQUEST_TIMEOUT_MS,
 } from "./constants.js";
 import { GEOAPIFY_API_KEY, isGeoapifyConfigured } from "./places-config.js";
 
@@ -13,10 +16,16 @@ export const GEOAPIFY_FUEL_CATEGORIES = "service.vehicle.fuel";
 const GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places";
 const GEOAPIFY_REQUEST_TIMEOUT_MS = 8000;
 
-export async function fetchGeoapifyPlaces(categories, lon, lat, limit = 20) {
+export async function fetchGeoapifyPlaces(
+  categories,
+  lon,
+  lat,
+  limit = 20,
+  radiusMeters = ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS,
+) {
   const url = new URL(GEOAPIFY_PLACES_URL);
   url.searchParams.set("categories", categories);
-  url.searchParams.set("filter", `circle:${lon},${lat},${ROUTE_RECOMMENDATION_SEARCH_RADIUS_METERS}`);
+  url.searchParams.set("filter", `circle:${lon},${lat},${radiusMeters}`);
   url.searchParams.set("bias", `proximity:${lon},${lat}`);
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("lang", "en");
@@ -358,4 +367,209 @@ export async function fetchGeoapifyFuelStationsAlongRoute(tripStops, onUpdate, h
   );
 
   return helpers.sortFuelStations([...stationsById.values()]);
+}
+
+const OVERPASS_ENDPOINTS = [
+  "https://z.overpass-api.de/api/interpreter",
+  "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
+async function fetchOverpassJson(query) {
+  const body = new URLSearchParams({ data: query });
+  const attempts = OVERPASS_ENDPOINTS.map((endpoint) => (async () => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), OVERPASS_REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          Accept: "application/json",
+        },
+        body,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) throw new Error("Overpass request failed");
+      return response.json();
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  })());
+
+  return Promise.any(attempts);
+}
+
+function normalizeNearMeRestaurant(feature, userLocation) {
+  const props = feature.properties || {};
+  const lat = props.lat;
+  const lon = props.lon;
+  const name = props.name || props.address_line1 || props.brand;
+
+  if (!name || lat == null || lon == null) return null;
+
+  const cuisineTag = (props.categories || []).find((category) => category.startsWith("catering."));
+  const cuisine = cuisineTag
+    ? cuisineTag.replace(/^catering\./, "").replaceAll("_", " ")
+    : "Cuisine not listed";
+  const address = props.formatted || props.address_line1 || "";
+  const hours = props.opening_hours ? ` · ${props.opening_hours}` : "";
+  const distanceMiles = getGeoapifyDistanceMiles(userLocation, { lat, lon });
+
+  return {
+    id: `geoapify-${props.place_id}`,
+    name,
+    distanceMiles,
+    details: `${cuisine}${address ? ` · ${address}` : ""}${hours}`,
+    lat,
+    lon,
+  };
+}
+
+function normalizeNearMeFuelStation(feature, userLocation) {
+  const props = feature.properties || {};
+  const lat = props.lat;
+  const lon = props.lon;
+  const name = props.name || props.brand || "Fuel station";
+
+  if (lat == null || lon == null) return null;
+
+  const address = props.formatted || props.address_line1 || "";
+  const hours = props.opening_hours ? ` · ${props.opening_hours}` : "";
+  const distanceMiles = getGeoapifyDistanceMiles(userLocation, { lat, lon });
+
+  return {
+    id: `geoapify-${props.place_id}`,
+    name,
+    distanceMiles,
+    details: `${address || "Address not listed"}${hours}`,
+    lat,
+    lon,
+  };
+}
+
+function normalizeNearMeOsmRestaurant(element, userLocation) {
+  const tags = element.tags || {};
+  const lat = element.lat ?? element.center?.lat;
+  const lon = element.lon ?? element.center?.lon;
+  const name = tags.name || tags.brand || tags.operator;
+
+  if (!name || lat == null || lon == null) return null;
+
+  const cuisine = tags.cuisine ? tags.cuisine.replaceAll(";", ", ") : tags.amenity?.replaceAll("_", " ") || "Restaurant";
+  const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
+  const city = tags["addr:city"];
+  const address = [street, city].filter(Boolean).join(", ");
+  const distanceMiles = getGeoapifyDistanceMiles(userLocation, { lat, lon });
+
+  return {
+    id: `osm-${element.type}-${element.id}`,
+    name,
+    distanceMiles,
+    details: `${cuisine}${address ? ` · ${address}` : ""}`,
+    lat,
+    lon,
+  };
+}
+
+function normalizeNearMeOsmFuelStation(element, userLocation) {
+  const tags = element.tags || {};
+  const lat = element.lat ?? element.center?.lat;
+  const lon = element.lon ?? element.center?.lon;
+  const name = tags.name || tags.brand || tags.operator || "Fuel station";
+
+  if (lat == null || lon == null) return null;
+
+  const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
+  const city = tags["addr:city"];
+  const address = [street, city].filter(Boolean).join(", ");
+  const distanceMiles = getGeoapifyDistanceMiles(userLocation, { lat, lon });
+
+  return {
+    id: `osm-${element.type}-${element.id}`,
+    name,
+    distanceMiles,
+    details: address || "Address not listed",
+    lat,
+    lon,
+  };
+}
+
+function sortByDistance(items) {
+  return [...items].sort((a, b) => a.distanceMiles - b.distanceMiles);
+}
+
+function withinNearMeRadius(item) {
+  return item && item.distanceMiles <= NEAR_ME_SEARCH_RADIUS_MILES;
+}
+
+export async function fetchFoodNearLocation(location, limit, radiusMeters = NEAR_ME_SEARCH_RADIUS_METERS) {
+  if (isGeoapifyConfigured()) {
+    try {
+      const data = await fetchGeoapifyPlaces(
+        GEOAPIFY_FOOD_CATEGORIES,
+        location.lon,
+        location.lat,
+        limit + 6,
+        radiusMeters,
+      );
+      const restaurants = sortByDistance(
+        data.features
+          .map((feature) => normalizeNearMeRestaurant(feature, location))
+          .filter(withinNearMeRadius),
+      ).slice(0, limit);
+
+      if (restaurants.length) {
+        return restaurants;
+      }
+    } catch {
+      // Fall back to Overpass.
+    }
+  }
+
+  const query = `[out:json][timeout:25];(nwr["amenity"~"^(restaurant|fast_food|cafe)$"](around:${radiusMeters},${location.lat},${location.lon}););out center ${limit + 10};`;
+  const data = await fetchOverpassJson(query);
+
+  return sortByDistance(
+    data.elements
+      .map((element) => normalizeNearMeOsmRestaurant(element, location))
+      .filter(withinNearMeRadius),
+  ).slice(0, limit);
+}
+
+export async function fetchFuelNearLocation(location, limit, radiusMeters = NEAR_ME_SEARCH_RADIUS_METERS) {
+  if (isGeoapifyConfigured()) {
+    try {
+      const data = await fetchGeoapifyPlaces(
+        GEOAPIFY_FUEL_CATEGORIES,
+        location.lon,
+        location.lat,
+        limit + 4,
+        radiusMeters,
+      );
+      const stations = sortByDistance(
+        data.features
+          .map((feature) => normalizeNearMeFuelStation(feature, location))
+          .filter(withinNearMeRadius),
+      ).slice(0, limit);
+
+      if (stations.length) {
+        return stations;
+      }
+    } catch {
+      // Fall back to Overpass.
+    }
+  }
+
+  const query = `[out:json][timeout:25];(nwr["amenity"="fuel"](around:${radiusMeters},${location.lat},${location.lon}););out center ${limit + 8};`;
+  const data = await fetchOverpassJson(query);
+
+  return sortByDistance(
+    data.elements
+      .map((element) => normalizeNearMeOsmFuelStation(element, location))
+      .filter(withinNearMeRadius),
+  ).slice(0, limit);
 }

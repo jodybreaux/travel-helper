@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Route Info · Travel Helper</title>
-    <link rel="stylesheet" href="styles.css?v=2.34" />
+    <link rel="stylesheet" href="styles.css?v=2.35" />
   </head>
   <body data-current-page="route-info">
     <header class="site-header">
@@ -37,6 +37,13 @@
         </div>
 
         <form class="planner-card" id="tripForm">
+          <label class="recent-routes-label">
+            Previous routes
+            <select id="recentRoutesSelect" name="recentRoutes" aria-label="Previous routes">
+              <option value="">Select a previous route...</option>
+            </select>
+          </label>
+
           <div class="form-grid">
             <div class="form-columns">
               <fieldset class="form-column">
@@ -138,9 +145,9 @@
     </main>
 
     <footer class="site-footer">
-      <p>Cajun Travel Services · v2.34 · Built 2026-07-01 21:30 UTC</p>
+      <p>Cajun Travel Services · v2.35 · Built 2026-07-01 22:15 UTC</p>
     </footer>
 
-    <script type="module" src="js/pages/route-info.js?v=2.34"></script>
+    <script type="module" src="js/pages/route-info.js?v=2.35"></script>
   </body>
 </html>

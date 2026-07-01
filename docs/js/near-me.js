@@ -1,0 +1,220 @@
+import {
+  NEAR_ME_FOOD_LIMIT,
+  NEAR_ME_FUEL_LIMIT,
+  NEAR_ME_SEARCH_RADIUS_MILES,
+} from "./constants.js";
+import { fetchFoodNearLocation, fetchFuelNearLocation } from "./places-api.js";
+import { escapeHtml, renderPlaceStopCard } from "./place-cards.js";
+
+const STORAGE_KEY = "travel-helper-near-me";
+
+let nearMeState = loadNearMeState();
+
+function loadNearMeState() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : defaultNearMeState();
+  } catch {
+    return defaultNearMeState();
+  }
+}
+
+function defaultNearMeState() {
+  return {
+    location: null,
+    food: [],
+    fuel: [],
+    loading: false,
+    error: "",
+    updatedAt: null,
+  };
+}
+
+function persistNearMeState() {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nearMeState));
+  } catch {
+    // Keep the current page usable even if storage is full.
+  }
+}
+
+function getCurrentPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("This browser does not support location lookup."));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
+        });
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          reject(new Error("Location permission was denied. Allow location access to search near you."));
+          return;
+        }
+
+        if (error.code === error.TIMEOUT) {
+          reject(new Error("Location lookup timed out. Try again in a moment."));
+          return;
+        }
+
+        reject(new Error("Unable to determine your current location."));
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 60000,
+      },
+    );
+  });
+}
+
+function renderNearMeSection(title, items, placeType, emptyMessage) {
+  const cards = items.length
+    ? items.map((item) => renderPlaceStopCard(item, placeType)).join("")
+    : `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+
+  return `
+    <section class="near-me-section" aria-label="${escapeHtml(title)}">
+      <h4>${escapeHtml(title)}</h4>
+      ${cards}
+    </section>
+  `;
+}
+
+function renderNearMeResults(container) {
+  if (!container) return;
+
+  if (nearMeState.loading) {
+    container.hidden = false;
+    container.innerHTML = `<div class="empty-state loading-state" role="status">Finding food and gas near your current location...</div>`;
+    return;
+  }
+
+  if (nearMeState.error) {
+    container.hidden = false;
+    container.innerHTML = `<div class="empty-state" role="status">${escapeHtml(nearMeState.error)}</div>`;
+    return;
+  }
+
+  if (!nearMeState.food.length && !nearMeState.fuel.length) {
+    container.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+
+  const locationLabel = nearMeState.location
+    ? `Updated ${new Date(nearMeState.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · within ${NEAR_ME_SEARCH_RADIUS_MILES} mi`
+    : "";
+
+  container.hidden = false;
+  container.innerHTML = `
+    <div class="near-me-summary">
+      <strong>Near your current location</strong>
+      ${locationLabel ? `<span>${escapeHtml(locationLabel)}</span>` : ""}
+    </div>
+    ${renderNearMeSection(
+      `Food (${nearMeState.food.length})`,
+      nearMeState.food,
+      "restaurant",
+      "No food locations found near you.",
+    )}
+    ${renderNearMeSection(
+      `Gas (${nearMeState.fuel.length})`,
+      nearMeState.fuel,
+      "gas station",
+      "No gas stations found near you.",
+    )}
+  `;
+}
+
+function setNearMeStatus(statusElement, message) {
+  if (statusElement) {
+    statusElement.textContent = message || "";
+  }
+}
+
+async function searchFoodAndGasNearMe({ button, statusElement, resultsElement }) {
+  if (nearMeState.loading) return;
+
+  nearMeState = {
+    ...defaultNearMeState(),
+    loading: true,
+  };
+  persistNearMeState();
+  renderNearMeResults(resultsElement);
+  setNearMeStatus(statusElement, "Requesting your location...");
+  if (button) button.disabled = true;
+
+  try {
+    const location = await getCurrentPosition();
+    setNearMeStatus(statusElement, "Searching for nearby food and gas...");
+
+    const [food, fuel] = await Promise.all([
+      fetchFoodNearLocation(location, NEAR_ME_FOOD_LIMIT),
+      fetchFuelNearLocation(location, NEAR_ME_FUEL_LIMIT),
+    ]);
+
+    nearMeState = {
+      location,
+      food,
+      fuel,
+      loading: false,
+      error: "",
+      updatedAt: Date.now(),
+    };
+    persistNearMeState();
+    setNearMeStatus(
+      statusElement,
+      food.length || fuel.length
+        ? `Found ${food.length} food and ${fuel.length} gas options near you.`
+        : "No nearby food or gas locations were found.",
+    );
+  } catch (error) {
+    nearMeState = {
+      ...defaultNearMeState(),
+      error: error.message || "Near-me lookup failed.",
+    };
+    persistNearMeState();
+    setNearMeStatus(statusElement, nearMeState.error);
+  } finally {
+    if (button) button.disabled = false;
+    renderNearMeResults(resultsElement);
+  }
+}
+
+export function initNearMeLookup({
+  button = "#nearMeButton",
+  status = "#nearMeStatus",
+  results = "#nearMeResults",
+} = {}) {
+  const buttonElement = typeof button === "string" ? document.querySelector(button) : button;
+  const statusElement = typeof status === "string" ? document.querySelector(status) : status;
+  const resultsElement = typeof results === "string" ? document.querySelector(results) : results;
+
+  if (!buttonElement || !resultsElement) {
+    return;
+  }
+
+  renderNearMeResults(resultsElement);
+  if (!nearMeState.loading && nearMeState.food.length + nearMeState.fuel.length > 0) {
+    setNearMeStatus(
+      statusElement,
+      `Showing ${nearMeState.food.length} food and ${nearMeState.fuel.length} gas options near you.`,
+    );
+  }
+
+  buttonElement.addEventListener("click", () => {
+    searchFoodAndGasNearMe({
+      button: buttonElement,
+      statusElement,
+      resultsElement,
+    });
+  });
+}

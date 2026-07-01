@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meals · Travel Helper</title>
-    <link rel="stylesheet" href="styles.css?v=2.34" />
+    <link rel="stylesheet" href="styles.css?v=2.35" />
   </head>
   <body data-current-page="meals">
     <header class="site-header">
@@ -35,15 +35,26 @@
               <p>Suggested restaurants, cafes, fast-food stops, and paired gas options near each planned stop, with forward fallback options when needed.</p>
             </div>
           </div>
+          <div class="near-me-panel" aria-label="Food and gas near your current location">
+            <div class="near-me-actions">
+              <button class="button button-secondary" id="nearMeButton" type="button">
+                Food &amp; gas near me
+              </button>
+              <p class="near-me-status" id="nearMeStatus" role="status">
+                Use your current location to find up to 10 food options and 3 gas stations nearby.
+              </p>
+            </div>
+            <div class="near-me-results restaurant-list" id="nearMeResults" hidden></div>
+          </div>
           <div class="restaurant-list" id="restaurantList"></div>
         </article>
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>Cajun Travel Services · v2.34 · Built 2026-07-01 21:30 UTC</p>
+      <p>Cajun Travel Services · v2.35 · Built 2026-07-01 22:15 UTC</p>
     </footer>
 
-    <script type="module" src="js/pages/meals.js?v=2.34"></script>
+    <script type="module" src="js/pages/meals.js?v=2.35"></script>
   </body>
 </html>
