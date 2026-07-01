@@ -1537,6 +1537,7 @@ async function loadDrivingDirections(
     activeDepartureAt = departureAt;
     activeRouteOptions = routeOptions.slice(0, routes.length);
     updateRouteCardStats(activeRouteOptions);
+    renderRoutes(selectedRouteIndex);
 
     if (ui.mapStatus) {
       ui.mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
@@ -1547,6 +1548,9 @@ async function loadDrivingDirections(
     if (requestId !== previewRequestId) return;
     if (ui.mapStatus) ui.mapStatus.textContent = error.message;
     if (ui.formMessage) ui.formMessage.textContent = "Route preview paused until both locations can be found.";
+    if (ui.routeGrid) {
+      ui.routeGrid.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    }
     if (ui.routeSummary) {
       ui.routeSummary.textContent = activeRouteOptions.length
         ? "Showing the previous route. Try a more specific city, state, or street address."
@@ -1555,12 +1559,30 @@ async function loadDrivingDirections(
   }
 }
 
+function getDepartureDateTimeFromStoredForm() {
+  const { form } = getState();
+  return new Date(`${form.departDate}T${form.departTime || "08:00"}`);
+}
+
+function renderRoutesLoadingState(origin, destination) {
+  if (!ui.routeGrid) return;
+  ui.routeGrid.innerHTML = `<div class="empty-state">Creating a driving route from ${escapeHtml(origin)} to ${escapeHtml(destination)}...</div>`;
+}
+
 function renderRoutes(selectedIndex = selectedRouteIndex) {
   if (!ui.routeGrid) return;
 
-  const availableRoutes = activeRouteOptions.length
-    ? routes.filter((_, index) => activeRouteOptions[index])
-    : routes;
+  if (!activeRouteOptions.length) {
+    const { form } = getState();
+    if (form.origin && form.destination) {
+      renderRoutesLoadingState(form.origin, form.destination);
+    } else {
+      ui.routeGrid.innerHTML = `<div class="empty-state">Enter a trip on the route info page to see route options.</div>`;
+    }
+    return;
+  }
+
+  const availableRoutes = routes.filter((_, index) => activeRouteOptions[index]);
   const routesToRender = selectedIndex == null ? availableRoutes : [routes[selectedIndex]];
 
   ui.routeGrid.innerHTML = routesToRender
@@ -1609,7 +1631,7 @@ function renderRoutes(selectedIndex = selectedRouteIndex) {
     );
   }
 
-  ui.  ui.routeGrid.querySelectorAll("[data-route]").forEach((button) => {
+  ui.routeGrid.querySelectorAll("[data-route]").forEach((button) => {
     button.addEventListener("click", () => {
       displayRouteSelection(Number(button.dataset.route));
       if (ui.formMessage) {
@@ -2057,7 +2079,6 @@ export function initRouteInfoPage() {
 export function initRoutesPage() {
   hydrateTripState();
   initMap();
-  renderRoutes();
 
   if (ui.directionsToggle && ui.directionsList) {
     ui.directionsToggle.addEventListener("click", () => {
@@ -2066,16 +2087,22 @@ export function initRoutesPage() {
   }
 
   if (activeRouteOptions.length && activeOrigin && activeDestination) {
+    renderRoutes();
     const index = selectedRouteIndex ?? 0;
     displayRouteSelection(index, previewRequestId, { loadRecommendations: true });
   } else {
     const { form } = getState();
     if (form.origin && form.destination) {
-      const departureAt = getDepartureDateTime(new FormData());
+      renderRoutes();
+      const departureAt = getDepartureDateTimeFromStoredForm();
       const requestId = ++previewRequestId;
+      persistTripState();
       loadDrivingDirections(form.origin, form.destination, departureAt, requestId, { loadRecommendations: true });
-    } else if (ui.mapStatus) {
-      ui.mapStatus.textContent = "Enter a trip on the route info page to calculate driving directions.";
+    } else {
+      renderRoutes();
+      if (ui.mapStatus) {
+        ui.mapStatus.textContent = "Enter a trip on the route info page to calculate driving directions.";
+      }
     }
   }
 

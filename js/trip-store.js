@@ -136,7 +136,11 @@ function loadState() {
 let state = loadState();
 
 function persist() {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(state)));
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(state)));
+  } catch {
+    // Route geometry can exceed sessionStorage limits; keep the current page usable in memory.
+  }
 }
 
 export function getState() {
