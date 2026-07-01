@@ -22,6 +22,11 @@ import {
   CENTRAL_TEXAS_VIEWBOX,
 } from "./constants.js";
 import {
+  isGeoapifyConfigured,
+  fetchGeoapifyRestaurantsAlongRoute,
+  fetchGeoapifyFuelStationsAlongRoute,
+} from "./places-api.js";
+import {
   getState,
   patchState,
   saveFormFromControls,
@@ -1121,6 +1126,22 @@ async function fetchRestaurantsAlongRoute(route, departureAt, onUpdate) {
     return [];
   }
 
+  if (isGeoapifyConfigured()) {
+    try {
+      return await fetchGeoapifyRestaurantsAlongRoute(tripStops, onUpdate, {
+        route,
+        getForwardRecommendationSearchPointsWithinMiles,
+        foodForwardRecommendationLookaheadMiles: FOOD_FORWARD_RECOMMENDATION_LOOKAHEAD_MILES,
+        forwardRecommendationRetryPoints: FORWARD_RECOMMENDATION_RETRY_POINTS,
+        maxRestaurantsPerStop: MAX_RESTAURANTS_PER_STOP,
+        preferDirectRecommendations,
+        sortRestaurants,
+      });
+    } catch {
+      // Fall back to Overpass when Geoapify is unavailable or rate-limited.
+    }
+  }
+
   const restaurantsById = new Map();
   const directSearchPoints = getDirectSearchPoints(tripStops);
   const stopsWithDirectResults = new Set();
@@ -1287,6 +1308,21 @@ async function fetchFuelStationsAlongRoute(route, departureAt, onUpdate) {
 
   if (!tripStops.length) {
     return [];
+  }
+
+  if (isGeoapifyConfigured()) {
+    try {
+      return await fetchGeoapifyFuelStationsAlongRoute(tripStops, onUpdate, {
+        route,
+        getForwardRecommendationSearchPoints,
+        forwardRecommendationRetryPoints: FORWARD_RECOMMENDATION_RETRY_POINTS,
+        maxFuelStationsPerStop: MAX_FUEL_STATIONS_PER_STOP,
+        preferDirectRecommendations,
+        sortFuelStations,
+      });
+    } catch {
+      // Fall back to Overpass when Geoapify is unavailable or rate-limited.
+    }
   }
 
   const stationsById = new Map();

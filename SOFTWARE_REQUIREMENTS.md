@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.28  
+**Version:** 2.29  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.28 |
+| Current version | 2.29 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -36,8 +36,8 @@ weather forecasts, dining options, gas stations, traffic conditions, and travel 
 |---|---|
 | Primary travel mode | Car travel implemented with live routing |
 | Route display | Leaflet/OpenStreetMap map with OSRM route geometry and turn-by-turn directions |
-| Meal options | Live OpenStreetMap/Overpass restaurant, cafe, and fast-food recommendations near route recommendation stops, with forward search when needed |
-| Gas stations | Live OpenStreetMap/Overpass recommendations within 2 miles of route recommendation stops |
+| Meal options | Geoapify Places (free tier) with OpenStreetMap/Overpass fallback near route recommendation stops |
+| Gas stations | Geoapify Places (free tier) with OpenStreetMap/Overpass fallback within 2 miles of route recommendation stops |
 | Weather | National Weather Service active-alert overlays for United States routes |
 | User preferences | Theme, date format, timezone, gas toggle, and restaurant toggle UI in place |
 | Remaining major gaps | Weather forecasts, real-time traffic incidents, public transit, flights, and full accessibility audit |
@@ -228,7 +228,8 @@ Prototype status:
 When restaurants are enabled, the application shall display restaurants along the route.
 
 Prototype status:
-- Implemented using OpenStreetMap restaurant, cafe, and fast-food data via Overpass.
+- Implemented using Geoapify Places for restaurant, cafe, and fast-food lookups when an API key is
+  configured, with OpenStreetMap/Overpass fallback.
 - The app searches each calculated waypoint first, then scans forward route points when the planned
   stop area does not return food options.
 - For trips shorter than four hours, the app groups recommendations under a short-trip midpoint
@@ -304,12 +305,13 @@ The application shall provide a user-selectable button to toggle gas station dis
 Prototype status:
 - Implemented as a UI toggle, enabled by default.
 - Displays OpenStreetMap fuel station data grouped by the same four-hour route stops used for meal
-  recommendations when public Overpass data is available.
+  recommendations when Geoapify or public Overpass data is available.
 - Fuel station search is limited to named fuel options within 2 miles of each planned route stop.
 - If no fuel options are found at a planned stop, the app searches ahead in the direction of travel
   and displays the next available options found within 2 miles of a forward route point.
 - Trips shorter than four hours search near the route midpoint and display up to five gas options
   when public OSM data is available.
+- Meal and fuel Geoapify lookups run in parallel per stop when an API key is configured.
 - Meal and fuel Overpass requests run independently with request timeouts so one slow lookup does not
   block the other from rendering.
 - Meal and fuel direct lookups batch all planned stops into one Overpass request per category before
@@ -333,8 +335,8 @@ hours where available.
 
 Prototype status:
 - Gas station options also appear immediately after food options in the meal recommendations panel.
-- Fuel suggestions are loaded from OpenStreetMap fuel station data via Overpass around the same
-  planned waypoint areas used for food recommendations.
+- Fuel suggestions are loaded from Geoapify Places or OpenStreetMap fuel station data via Overpass
+  around the same planned waypoint areas used for food recommendations.
 - For trips shorter than four hours, fuel suggestions are loaded near the route midpoint.
 - Fuel options are grouped under the paired food stop and sorted near the displayed food options
   when restaurant data is available.
@@ -384,8 +386,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.28` and UTC build timestamp
-  `2026-07-01 20:28 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.29` and UTC build timestamp
+  `2026-07-01 20:41 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -409,11 +411,11 @@ Prototype status:
 | Geocoding | Google Maps, OSM, similar | Nominatim | Implemented with central Texas ZIP/address bias |
 | Driving route geometry | Google Maps, OSRM, similar | OSRM public demo server | Implemented |
 | Turn-by-turn directions | Google Maps, OSRM, similar | OSRM public demo server | Implemented |
-| Restaurants | Google Places, Yelp, OSM | Overpass / OpenStreetMap | Implemented |
+| Restaurants | Google Places, Yelp, OSM | Geoapify Places with Overpass fallback | Implemented |
 | Weather alerts | National Weather Service, OpenWeatherMap, WeatherAPI | National Weather Service active alerts | Implemented for US routes |
 | Weather forecast | OpenWeatherMap, WeatherAPI, similar | None | Future work |
 | Traffic incidents | Google Maps, HERE, TomTom | None | Future work |
-| Gas stations | Places API, OSM, similar | Overpass / OpenStreetMap | Implemented |
+| Gas stations | Places API, OSM, similar | Geoapify Places with Overpass fallback | Implemented |
 | Public transit | GTFS and transit APIs | None | Future work |
 | Flights | Aviationstack or similar | None | Future work |
 
@@ -426,7 +428,8 @@ Prototype status:
 - OpenStreetMap tiles.
 - Nominatim for geocoding.
 - OSRM public demo server for driving route geometry and directions.
-- Overpass API for actual restaurant data.
+- Geoapify Places API for primary restaurant and fuel lookups when configured.
+- Overpass API for restaurant and fuel fallback data.
 - National Weather Service API for active weather alerts.
 - Python static server for local preview.
 - Node.js installed locally for JavaScript checks and future tooling.
@@ -463,7 +466,8 @@ Prototype note:
 - CORS policies shall be configured appropriately.
 
 Prototype status:
-- No private API keys are used.
+- Geoapify API keys are injected at deploy time through GitHub Actions and are not committed to git.
+- Overpass remains the fallback provider when Geoapify is unavailable or not configured.
 - External API data rendered into HTML is escaped where needed.
 - Production backend remains future work.
 
@@ -668,10 +672,9 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.28`.
-- Sped up food and gas lookups by batching direct stop searches, racing Overpass mirrors in parallel,
-  simplifying restaurant queries, capping food retry attempts, caching repeated Overpass queries, and
-  deferring nearby-town lookups so they do not compete with recommendation requests.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.29`.
+- Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
+  deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
 ## 11. Glossary
 
@@ -729,3 +732,4 @@ Production note:
 | 2.26 | July 1, 2026 | Split the prototype into separate HTML pages with shared session-based trip state |
 | 2.27 | July 1, 2026 | Restored route-option selection on the routes page after the multi-page refactor |
 | 2.28 | July 1, 2026 | Sped up food and gas lookups with batched Overpass queries and parallel mirror failover |
+| 2.29 | July 1, 2026 | Added Geoapify Places as the primary food and gas provider with Overpass fallback |
