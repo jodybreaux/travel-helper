@@ -2,8 +2,8 @@
 
 ## Software Requirements Document
 
-**Version:** 2.25  
-**Date:** June 29, 2026  
+**Version:** 2.27  
+**Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
 **Prepared by:** Cajun Travel Services project workspace  
@@ -16,9 +16,9 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.25 |
+| Current version | 2.27 |
 | Current status | Prototype in progress |
-| Last updated | June 29, 2026 |
+| Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
 
 ## 1. Executive Summary
@@ -381,8 +381,8 @@ Prototype status:
 - The route information form is arranged in two columns: departure information on the left and
   destination information on the right, followed by mode of travel and timezone controls.
 - Main hero title is `Route-Aware Trip Planning`.
-- Footer branding displays `Cajun Travel Services` with app version `v2.26` and UTC build timestamp
-  `2026-07-01 00:00 UTC`.
+- Footer branding displays `Cajun Travel Services` with app version `v2.27` and UTC build timestamp
+  `2026-07-01 20:16 UTC`.
 - Location text entry preserves the previous route while the user is typing and waits for field
   change/blur before recalculating route previews.
 - Starting a new explicit route creation clears the previously displayed route, map, directions, meal
@@ -662,6 +662,10 @@ Production note:
 - Extended food fallback searching up to 50 miles ahead of a planned stop when needed.
 - Removed internal search-radius wording from Food/Gas user-facing loading and empty-state copy.
 - Updated frontend asset cache-busting and footer stamp to app version `v2.21`.
+- Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
+  chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
+  times from stored trip form data when the route-info form is not on the page.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.27`.
 
 ## 11. Glossary
 
@@ -717,3 +721,4 @@ Production note:
 | 2.23 | June 29, 2026 | Added visible background Food/Gas loading states and compact desktop thumbnails |
 | 2.24 | June 29, 2026 | Added nearby-town stop context, per-stop wait indicators, and progressive Food/Gas rendering |
 | 2.26 | July 1, 2026 | Split the prototype into separate HTML pages with shared session-based trip state |
+| 2.27 | July 1, 2026 | Restored route-option selection on the routes page after the multi-page refactor |

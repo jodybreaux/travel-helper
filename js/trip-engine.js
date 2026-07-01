@@ -884,10 +884,16 @@ function getMissingRecommendationStopIds(tripStops, items) {
 }
 
 function getDepartureDateTime(formData) {
-  const date = formData.get("departDate") || ui.tripForm?.elements.departDate?.value || getState().form.departDate;
-  const time = formData.get("departTime") || ui.tripForm?.elements.departTime?.value || getState().form.departTime || "08:00";
+  const date = formData?.get?.("departDate") || ui.tripForm?.elements.departDate?.value || getState().form.departDate;
+  const time = formData?.get?.("departTime") || ui.tripForm?.elements.departTime?.value || getState().form.departTime || "08:00";
 
   return new Date(`${date}T${time}`);
+}
+
+function resolveDepartureDateTime() {
+  if (activeDepartureAt) return activeDepartureAt;
+  if (ui.tripForm) return getDepartureDateTime(new FormData(ui.tripForm));
+  return getDepartureDateTimeFromStoredForm();
 }
 
 function getNearbyTownName(address = {}) {
@@ -1407,10 +1413,23 @@ function loadTripStopTownNames(tripStops, requestId) {
   });
 }
 
+function previewRouteOnMap(index, requestId = previewRequestId) {
+  const route = activeRouteOptions[index];
+  if (!route || !activeOrigin || !activeDestination) return;
+
+  drawRoute(route, activeOrigin, activeDestination);
+  renderDirections(route);
+  loadWeatherAlerts(route, requestId);
+  if (ui.routeSummary) {
+    ui.routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
+  }
+}
+
 function displayRouteSelection(index, requestId = previewRequestId, { loadRecommendations = true } = {}) {
   const route = activeRouteOptions[index];
   if (!route || !activeOrigin || !activeDestination) return;
-  const departureAt = activeDepartureAt || getDepartureDateTime(new FormData(ui.tripForm));
+  const departureAt = resolveDepartureDateTime();
+  activeDepartureAt = departureAt;
 
   selectedRouteIndex = index;
   renderRoutes(index);
@@ -1502,7 +1521,7 @@ function displayRouteSelection(index, requestId = previewRequestId, { loadRecomm
 async function loadDrivingDirections(
   originQuery,
   destinationQuery,
-  departureAt = getDepartureDateTime(new FormData(ui.tripForm)),
+  departureAt = resolveDepartureDateTime(),
   requestId = previewRequestId,
   { loadRecommendations = true } = {},
 ) {
@@ -1537,12 +1556,13 @@ async function loadDrivingDirections(
     activeDepartureAt = departureAt;
     activeRouteOptions = routeOptions.slice(0, routes.length);
     updateRouteCardStats(activeRouteOptions);
-    renderRoutes(selectedRouteIndex);
+    selectedRouteIndex = null;
+    renderRoutes(null);
 
     if (ui.mapStatus) {
       ui.mapStatus.textContent = `Driving route ready from ${originQuery} to ${destinationQuery}.`;
     }
-    displayRouteSelection(0, requestId, { loadRecommendations });
+    previewRouteOnMap(0, requestId);
     persistTripState();
   } catch (error) {
     if (requestId !== previewRequestId) return;
@@ -2088,8 +2108,11 @@ export function initRoutesPage() {
 
   if (activeRouteOptions.length && activeOrigin && activeDestination) {
     renderRoutes();
-    const index = selectedRouteIndex ?? 0;
-    displayRouteSelection(index, previewRequestId, { loadRecommendations: true });
+    if (selectedRouteIndex != null) {
+      displayRouteSelection(selectedRouteIndex, previewRequestId, { loadRecommendations: true });
+    } else {
+      previewRouteOnMap(0, previewRequestId);
+    }
   } else {
     const { form } = getState();
     if (form.origin && form.destination) {
