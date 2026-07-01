@@ -4,6 +4,7 @@ import {
   NEAR_ME_SEARCH_RADIUS_MILES,
 } from "./constants.js";
 import { fetchFoodNearLocation, fetchFuelNearLocation } from "./places-api.js";
+import { reverseGeocodeStreetAddress } from "./geocode.js";
 import { escapeHtml, renderPlaceStopCard } from "./place-cards.js";
 
 import { setNearMeButtonLoading } from "./site-header.js";
@@ -90,6 +91,14 @@ function renderNearMeSection(title, items, placeType, emptyMessage) {
   `;
 }
 
+function getNearMeLocationLabel() {
+  if (!nearMeState.location) {
+    return "your current location";
+  }
+
+  return nearMeState.location.addressLabel || "your current location";
+}
+
 function renderNearMeResults(container) {
   if (!container) return;
 
@@ -118,7 +127,7 @@ function renderNearMeResults(container) {
   container.hidden = false;
   container.innerHTML = `
     <div class="near-me-summary">
-      <strong>Near your current location</strong>
+      <strong>Near ${escapeHtml(getNearMeLocationLabel())}</strong>
       ${locationLabel ? `<span>${escapeHtml(locationLabel)}</span>` : ""}
     </div>
     ${renderNearMeSection(
@@ -160,15 +169,19 @@ async function searchFoodAndGasNearMe({ statusElement, resultsElement }) {
 
   try {
     const location = await getCurrentPosition();
-    setNearMeStatus(statusElement, "Searching for nearby food and gas...");
+    setNearMeStatus(statusElement, "Looking up your street address...");
 
-    const [food, fuel] = await Promise.all([
+    const [addressLabel, food, fuel] = await Promise.all([
+      reverseGeocodeStreetAddress(location).catch(() => ""),
       fetchFoodNearLocation(location, NEAR_ME_FOOD_LIMIT),
       fetchFuelNearLocation(location, NEAR_ME_FUEL_LIMIT),
     ]);
 
     nearMeState = {
-      location,
+      location: {
+        ...location,
+        addressLabel: addressLabel || "your current location",
+      },
       food,
       fuel,
       loading: false,
@@ -176,11 +189,12 @@ async function searchFoodAndGasNearMe({ statusElement, resultsElement }) {
       updatedAt: Date.now(),
     };
     persistNearMeState();
+    const locationSummary = addressLabel ? ` near ${addressLabel}` : " near you";
     setNearMeStatus(
       statusElement,
       food.length || fuel.length
-        ? `Found ${food.length} food and ${fuel.length} gas options near you.`
-        : "No nearby food or gas locations were found.",
+        ? `Found ${food.length} food and ${fuel.length} gas options${locationSummary}.`
+        : `No nearby food or gas locations were found${locationSummary}.`,
     );
   } catch (error) {
     nearMeState = {
@@ -215,9 +229,12 @@ export function initNearMeLookup({
 
   renderNearMeResults(resultsElement);
   if (!nearMeState.loading && nearMeState.food.length + nearMeState.fuel.length > 0) {
+    const locationSummary = nearMeState.location?.addressLabel
+      ? ` near ${nearMeState.location.addressLabel}`
+      : " near you";
     setNearMeStatus(
       statusElement,
-      `Showing ${nearMeState.food.length} food and ${nearMeState.fuel.length} gas options near you.`,
+      `Showing ${nearMeState.food.length} food and ${nearMeState.fuel.length} gas options${locationSummary}.`,
     );
   }
 
