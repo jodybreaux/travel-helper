@@ -1148,14 +1148,14 @@ async function fetchRestaurantsAlongRoute(route, departureAt, onUpdate) {
   const restaurantsById = new Map();
   const directSearchPoints = getDirectSearchPoints(tripStops);
   const stopsWithDirectResults = new Set();
-  let batchDirectAttempted = false;
+  let batchDirectSucceeded = false;
 
   try {
-    batchDirectAttempted = true;
     const data = await fetchOverpassData(
       buildRestaurantQuery(directSearchPoints),
       "Restaurant lookup is unavailable right now.",
     );
+    batchDirectSucceeded = true;
     const stopResults = collectStopRecommendations(data.elements, tripStops, directSearchPoints, normalizeRestaurant);
 
     stopResults.forEach((stopRestaurants, stopId) => {
@@ -1174,7 +1174,7 @@ async function fetchRestaurantsAlongRoute(route, departureAt, onUpdate) {
       .map(async (tripStop) => {
         const stopRestaurants = await fetchRestaurantsForStop(route, tripStops, tripStop, (items, stopId, isComplete) => {
           onUpdate?.(items, stopId, isComplete);
-        }, { skipDirectLookup: batchDirectAttempted });
+        }, { skipDirectLookup: batchDirectSucceeded });
         stopRestaurants.forEach((restaurant) => {
           restaurantsById.set(restaurant.id, restaurant);
         });
@@ -1334,14 +1334,14 @@ async function fetchFuelStationsAlongRoute(route, departureAt, onUpdate) {
   const stationsById = new Map();
   const directSearchPoints = getDirectSearchPoints(tripStops);
   const stopsWithDirectResults = new Set();
-  let batchDirectAttempted = false;
+  let batchDirectSucceeded = false;
 
   try {
-    batchDirectAttempted = true;
     const data = await fetchOverpassData(
       buildFuelQuery(directSearchPoints),
       "Fuel station lookup is unavailable right now.",
     );
+    batchDirectSucceeded = true;
     const stopResults = collectStopRecommendations(data.elements, tripStops, directSearchPoints, normalizeFuelStation);
 
     stopResults.forEach((stopStations, stopId) => {
@@ -1360,7 +1360,7 @@ async function fetchFuelStationsAlongRoute(route, departureAt, onUpdate) {
       .map(async (tripStop) => {
         const stopStations = await fetchFuelStationsForStop(route, tripStops, tripStop, (items, stopId, isComplete) => {
           onUpdate?.(items, stopId, isComplete);
-        }, { skipDirectLookup: batchDirectAttempted });
+        }, { skipDirectLookup: batchDirectSucceeded });
         stopStations.forEach((station) => {
           stationsById.set(station.id, station);
         });
@@ -1563,37 +1563,8 @@ function previewRouteOnMap(index, requestId = previewRequestId) {
   }
 }
 
-function displayRouteSelection(index, requestId = previewRequestId, { loadRecommendations = true } = {}) {
-  const route = activeRouteOptions[index];
-  if (!route || !activeOrigin || !activeDestination) return;
-  const departureAt = resolveDepartureDateTime();
-  activeDepartureAt = departureAt;
-
-  selectedRouteIndex = index;
-  renderRoutes(index);
-  drawRoute(route, activeOrigin, activeDestination);
-  renderDirections(route);
-  loadWeatherAlerts(route, requestId);
-  if (ui.routeSummary) {
-    ui.routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
-  }
-
-  activeRestaurants = [];
-  activeFuelStations = [];
-  activeTripStops = getTripRecommendationStops(route, departureAt);
-  recommendationLoading = {
-    restaurants: loadRecommendations && restaurantToggleChecked() && activeTripStops.length > 0,
-    fuel: loadRecommendations && gasToggleChecked() && activeTripStops.length > 0,
-    restaurantStopIds: new Set(loadRecommendations && restaurantToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
-    fuelStopIds: new Set(loadRecommendations && gasToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
-    townStopIds: new Set(activeTripStops.map((tripStop) => tripStop.id)),
-  };
-  drawRestaurantMarkers([]);
-  renderRestaurants();
-  renderGasStations();
-  persistTripState();
-
-  if (!loadRecommendations) {
+function startRouteRecommendationLoads(route, departureAt, requestId) {
+  if (!loadRecommendationsEnabled()) {
     return;
   }
 
@@ -1649,11 +1620,104 @@ function displayRouteSelection(index, requestId = previewRequestId, { loadRecomm
         if (requestId !== previewRequestId) return;
         recommendationLoading.fuel = false;
         recommendationLoading.fuelStopIds.clear();
-        ui.gasPanel.className = "empty-state";
-        ui.gasPanel.innerHTML = escapeHtml(fuelError.message);
+        if (ui.gasPanel) {
+          ui.gasPanel.className = "empty-state";
+          ui.gasPanel.innerHTML = escapeHtml(fuelError.message);
+        }
         if (restaurantToggleChecked()) renderRestaurants();
       });
   }
+}
+
+function loadRecommendationsEnabled() {
+  return restaurantToggleChecked() || gasToggleChecked();
+}
+
+function ensureRecommendationsLoaded() {
+  if (!activeRouteOptions.length || !activeOrigin || !activeDestination) {
+    return;
+  }
+
+  const routeIndex = selectedRouteIndex ?? 0;
+  const route = activeRouteOptions[routeIndex];
+  if (!route) {
+    return;
+  }
+
+  const departureAt = resolveDepartureDateTime();
+  if (!activeTripStops.length) {
+    activeTripStops = getTripRecommendationStops(route, departureAt);
+    persistTripState();
+  }
+
+  if (!activeTripStops.length) {
+    return;
+  }
+
+  const needsRestaurants = restaurantToggleChecked()
+    && !activeRestaurants.length
+    && !recommendationLoading.restaurants;
+  const needsFuel = gasToggleChecked()
+    && !activeFuelStations.length
+    && !recommendationLoading.fuel;
+
+  if (!needsRestaurants && !needsFuel) {
+    return;
+  }
+
+  const requestId = ++previewRequestId;
+
+  if (needsRestaurants) {
+    recommendationLoading.restaurants = true;
+    recommendationLoading.restaurantStopIds = new Set(activeTripStops.map((tripStop) => tripStop.id));
+  }
+
+  if (needsFuel) {
+    recommendationLoading.fuel = true;
+    recommendationLoading.fuelStopIds = new Set(activeTripStops.map((tripStop) => tripStop.id));
+  }
+
+  recommendationLoading.townStopIds = new Set(activeTripStops.map((tripStop) => tripStop.id));
+
+  startRouteRecommendationLoads(route, departureAt, requestId);
+  persistTripState();
+}
+
+function displayRouteSelection(index, requestId = previewRequestId, { loadRecommendations = true } = {}) {
+  const route = activeRouteOptions[index];
+  if (!route || !activeOrigin || !activeDestination) return;
+  const departureAt = resolveDepartureDateTime();
+  activeDepartureAt = departureAt;
+
+  selectedRouteIndex = index;
+  renderRoutes(index);
+  drawRoute(route, activeOrigin, activeDestination);
+  renderDirections(route);
+  loadWeatherAlerts(route, requestId);
+  if (ui.routeSummary) {
+    ui.routeSummary.textContent = `${formatDistance(route.distance)} · ${formatDuration(getRouteDurationWithStops(route))} with food stops · ${formatDuration(route.duration)} driving · ${route.legs[0].steps.length} driving steps`;
+  }
+
+  activeRestaurants = [];
+  activeFuelStations = [];
+  activeTripStops = getTripRecommendationStops(route, departureAt);
+  recommendationLoading = {
+    restaurants: loadRecommendations && restaurantToggleChecked() && activeTripStops.length > 0,
+    fuel: loadRecommendations && gasToggleChecked() && activeTripStops.length > 0,
+    restaurantStopIds: new Set(loadRecommendations && restaurantToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    fuelStopIds: new Set(loadRecommendations && gasToggleChecked() ? activeTripStops.map((tripStop) => tripStop.id) : []),
+    townStopIds: new Set(activeTripStops.map((tripStop) => tripStop.id)),
+  };
+  drawRestaurantMarkers([]);
+  renderRestaurants();
+  renderGasStations();
+  persistTripState();
+
+  if (!loadRecommendations) {
+    return;
+  }
+
+  startRouteRecommendationLoads(route, departureAt, requestId);
 }
 
 async function loadDrivingDirections(
@@ -2280,10 +2344,12 @@ export function initMealsPage() {
   if (gasToggle) gasToggle.checked = isGasEnabled();
   if (restaurantToggle) restaurantToggle.checked = isRestaurantEnabled();
 
+  ensureRecommendationsLoaded();
   renderRestaurants();
 }
 
 export function initGasPage() {
   hydrateTripState();
+  ensureRecommendationsLoaded();
   renderGasStations();
 }

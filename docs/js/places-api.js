@@ -7,7 +7,8 @@ import { GEOAPIFY_API_KEY, isGeoapifyConfigured } from "./places-config.js";
 export { isGeoapifyConfigured };
 
 export const GEOAPIFY_FOOD_CATEGORIES = "catering.restaurant,catering.fast_food,catering.cafe";
-export const GEOAPIFY_FUEL_CATEGORIES = "commercial.gas_station,service.fuel,service.vehicle.fuel";
+// Geoapify rejects the whole request when any category is invalid.
+export const GEOAPIFY_FUEL_CATEGORIES = "service.vehicle.fuel";
 
 const GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places";
 const GEOAPIFY_REQUEST_TIMEOUT_MS = 8000;

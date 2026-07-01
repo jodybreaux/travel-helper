@@ -50,5 +50,5 @@ export const DEFAULT_ORIGIN = "1105 San Augustine Dr, 78733";
 export const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
 export const CENTRAL_TEXAS_VIEWBOX = "-98.25,30.75,-97.25,30.0";
 
-export const APP_VERSION = "v2.33";
-export const APP_BUILD = "2026-07-01 20:59 UTC";
+export const APP_VERSION = "v2.34";
+export const APP_BUILD = "2026-07-01 21:30 UTC";

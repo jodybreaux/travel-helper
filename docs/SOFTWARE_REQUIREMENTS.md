@@ -2,7 +2,7 @@
 
 ## Software Requirements Document
 
-**Version:** 2.32  
+**Version:** 2.34  
 **Date:** July 1, 2026  
 **Status:** Prototype in progress  
 **Prepared for:** Jody Breaux  
@@ -16,7 +16,7 @@
 | Document owner | Jody Breaux |
 | Project | Travel Helper Application |
 | Document type | Software Requirements Document |
-| Current version | 2.32 |
+| Current version | 2.34 |
 | Current status | Prototype in progress |
 | Last updated | July 1, 2026 |
 | Primary implementation artifact | `index.html` |
@@ -674,8 +674,9 @@ Production note:
 - Fixed route-option cards on `routes.html` to show all three `Select route` buttons before a user
   chooses a route, preview the first route on the map without auto-selecting it, and resolve departure
   times from stored trip form data when the route-info form is not on the page.
-- Updated frontend asset cache-busting and footer stamp to app version `v2.32`.
-- Added GitHub Actions Pages deploy workflow with Geoapify key injection from repository secrets.
+- Updated frontend asset cache-busting and footer stamp to app version `v2.34`.
+- Fixed Geoapify fuel category list and Overpass per-stop fallback when batch lookup fails.
+- Meals and Gas pages now reload missing recommendations from the saved route.
 - Added Geoapify Places as the primary food and gas provider with Overpass fallback, GitHub Actions
   deploy injection for the free-tier API key, and parallel per-stop Geoapify lookups.
 
@@ -739,3 +740,5 @@ Production note:
 | 2.30 | July 1, 2026 | Enabled Geoapify API key for live food and gas lookups |
 | 2.31 | July 1, 2026 | Moved Geoapify key to GitHub secret with Actions deploy injection |
 | 2.32 | July 1, 2026 | Added GitHub Actions Pages deploy workflow |
+| 2.33 | July 1, 2026 | Fixed Geoapify empty-result fallback to Overpass for food and gas |
+| 2.34 | July 1, 2026 | Fixed Geoapify fuel categories and recommendation reload on Meals/Gas pages |
