@@ -51,7 +51,7 @@ export const DEFAULT_DESTINATION = "13601 Golden Wave Loop, 78738";
 export const CENTRAL_TEXAS_VIEWBOX = "-98.25,30.75,-97.25,30.0";
 
 export const APP_VERSION = "v2.39";
-export const APP_BUILD = "2026-07-01 24:00 UTC";
+export const APP_BUILD = "2026-07-02 14:47 UTC";
 
 export const RECENT_ROUTE_LIMIT = 10;
 export const NEAR_ME_SEARCH_RADIUS_METERS = 8047;
